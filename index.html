@@ -146,6 +146,7 @@
       .board {
         display: grid;
         grid-template-columns: repeat(9, 1fr);
+        grid-template-rows: repeat(9, 1fr);
         border: 3px solid #20252b;
         background: #d9d4c9;
         aspect-ratio: 1;
@@ -155,6 +156,9 @@
         position: relative;
         display: grid;
         place-items: center;
+        min-width: 0;
+        min-height: 0;
+        aspect-ratio: 1;
         background: #fffdf9;
         border: 1px solid #d9d4c9;
         color: #20252b;
