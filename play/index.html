@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>キラーアイテムナンプレ Web体験版</title>
+    <meta name="description" content="地雷、ハート、ヒント、シャッフルが登場するキラーアイテムナンプレをブラウザで少し遊べるWeb体験版です。">
+    <link rel="stylesheet" href="./styles.css">
+    <style>
+      .web-demo-note {
+        margin: 0 0 10px;
+        padding: 10px 12px;
+        border: 1px solid #ded8cc;
+        border-radius: 8px;
+        background: #fffdf9;
+        color: #5f6875;
+        font-size: .82rem;
+        font-weight: 750;
+        line-height: 1.55;
+      }
+
+      .web-demo-note a,
+      .web-demo-footer a {
+        color: #20252b;
+        font-weight: 900;
+      }
+
+      .web-demo-footer {
+        display: grid;
+        gap: 6px;
+        margin-top: 12px;
+        color: #687281;
+        text-align: center;
+        font-size: .82rem;
+        font-weight: 750;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app-shell">
+      <div class="web-demo-note">
+        ブラウザで遊べる広告なしの体験版です。気に入ったら
+        <a href="https://play.google.com/store/apps/details?id=killer.item.sudoku">Android版</a>
+        もどうぞ。
+      </div>
+
+      <section class="topbar" aria-label="ゲーム情報">
+        <div>
+          <h1>Killer Item Sudoku</h1>
+        </div>
+        <button class="icon-button" id="newGameButton" type="button" aria-label="遊び方の選択に戻る">
+          <span aria-hidden="true">↻</span>
+        </button>
+      </section>
+
+      <section class="status-panel" aria-live="polite">
+        <div class="stat">
+          <span>難易度</span>
+          <strong id="difficultyDisplay">-</strong>
+        </div>
+        <div class="stat">
+          <span>時間</span>
+          <strong id="timerDisplay">00:00</strong>
+        </div>
+        <div class="stat">
+          <span>ミス</span>
+          <strong id="mistakeCount">0 / 3</strong>
+        </div>
+        <div class="stat">
+          <span>スコア</span>
+          <strong id="scoreDisplay">0</strong>
+        </div>
+      </section>
+
+      <section class="board-wrap" aria-label="ゲーム盤">
+        <div class="board" id="board"></div>
+        <div class="combo-toast" id="comboToast" aria-live="polite"></div>
+      </section>
+
+      <section class="controls" aria-label="数字入力">
+        <div class="tool-row" aria-label="プレイ補助">
+          <button class="tool-button" id="undoButton" type="button">元に戻す</button>
+          <button class="tool-button" id="noteButton" type="button">メモ</button>
+          <button class="tool-button" id="eraseButton" type="button">消す</button>
+        </div>
+        <div class="pad" id="numberPad"></div>
+      </section>
+
+      <section class="item-legend" aria-label="アイテム凡例">
+        <div class="legend-entry" data-item="mine">
+          <span class="legend-icon legend-mine" aria-hidden="true">?</span>
+          <span><strong>地雷</strong>周囲8マスの数字を消す</span>
+        </div>
+        <div class="legend-entry" data-item="heart">
+          <span class="legend-icon legend-heart" aria-hidden="true"></span>
+          <span><strong>ハート</strong>ミスを1つ減らす</span>
+        </div>
+        <div class="legend-entry" data-item="hint">
+          <span class="legend-icon legend-hint" aria-hidden="true"></span>
+          <span><strong>ヒント</strong>周囲8マスを2択にする</span>
+        </div>
+        <div class="legend-entry" data-item="shuffle">
+          <span class="legend-icon legend-shuffle" aria-hidden="true"></span>
+          <span><strong>シャッフル</strong>ケージ配置を変える</span>
+        </div>
+      </section>
+
+      <footer class="privacy-footer web-demo-footer">
+        <span><a href="https://play.google.com/store/apps/details?id=killer.item.sudoku">Android版をGoogle Playで見る</a></span>
+        <span><a href="../privacy-policy.html">Privacy Policy</a></span>
+      </footer>
+
+      <div class="loading-overlay" id="loadingOverlay" aria-live="polite" aria-hidden="true">
+        <div class="loading-card">
+          <span class="loading-spinner" aria-hidden="true"></span>
+          <strong>生成中...</strong>
+        </div>
+      </div>
+
+      <dialog class="modal" id="difficultyDialog">
+        <div class="modal-body">
+          <h2>遊び方を選ぶ</h2>
+          <div class="item-picker" id="itemPicker" aria-label="登場アイテム">
+            <p class="picker-title">登場アイテム</p>
+          </div>
+          <div class="difficulty-list" id="difficultyList"></div>
+          <button class="record-button menu-record-button" id="recordButton" type="button">記録を見る</button>
+          <div class="daily-history" id="dailyHistory"></div>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="adventureDialog">
+        <div class="modal-body">
+          <h2>アドベンチャー</h2>
+          <p class="adventure-intro">いつもと違うルールで、少し変わった盤面に挑戦できます。</p>
+          <label class="adventure-practice-toggle" id="adventurePracticeToggle">
+            <input id="adventurePracticeInput" type="checkbox">
+            <span>
+              <strong>練習</strong>
+              <small>時間制限なし / 記録なし</small>
+            </span>
+          </label>
+          <div class="difficulty-list" id="adventureList"></div>
+          <div class="dialog-actions adventure-actions">
+            <button class="secondary-dialog-button" id="adventureBackButton" type="button">難易度選択に戻る</button>
+          </div>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="recordDialog">
+        <div class="modal-body">
+          <h2>記録</h2>
+          <div class="record-list" id="recordList"></div>
+          <div class="dialog-actions record-actions">
+            <button class="primary-button" id="closeRecordButton" type="button">閉じる</button>
+          </div>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="firstRunDialog">
+        <div class="modal-body intro-body">
+          <h2>はじめての方へ</h2>
+          <p>地雷・ハート・ヒントが発動する、少し変わったキラーナンプレです。</p>
+          <div class="intro-items" aria-label="アイテム紹介">
+            <span><b class="legend-icon legend-mine" aria-hidden="true">?</b>地雷</span>
+            <span><b class="legend-icon legend-heart" aria-hidden="true"></b>ハート</span>
+            <span><b class="legend-icon legend-hint" aria-hidden="true"></b>ヒント</span>
+            <span><b class="legend-icon legend-shuffle" aria-hidden="true"></b>シャッフル</span>
+          </div>
+          <div class="dialog-actions">
+            <button class="primary-button" id="firstRunStartButton" type="button">まず遊んでみる</button>
+            <button class="secondary-dialog-button" id="firstRunDifficultyButton" type="button">遊び方の選択に戻る</button>
+          </div>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="gameDialog">
+        <div class="modal-body">
+          <h2 id="dialogTitle">ゲーム終了</h2>
+          <div id="dialogText"></div>
+          <div class="dialog-actions">
+            <button class="primary-button revive-button" id="reviveButton" type="button" hidden>広告を見て復活</button>
+            <button class="primary-button" id="retryButton" type="button">もう一度遊ぶ</button>
+            <button class="secondary-dialog-button" id="dialogButton" type="button">遊び方の選択に戻る</button>
+          </div>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="pauseDialog">
+        <div class="modal-body">
+          <h2>一時停止</h2>
+          <p>ゲームを一時停止しています。</p>
+          <div class="dialog-actions">
+            <button class="primary-button" id="resumeButton" type="button">再開する</button>
+            <button class="secondary-dialog-button" id="pauseDifficultyButton" type="button">遊び方の選択に戻る</button>
+          </div>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="resetDialog">
+        <div class="modal-body">
+          <h2>ゲームをリセットしますか？</h2>
+          <div class="dialog-actions">
+            <button class="primary-button" id="cancelResetButton" type="button">続ける</button>
+            <button class="secondary-dialog-button" id="resetRetryButton" type="button">最初から遊ぶ</button>
+            <button class="secondary-dialog-button" id="confirmResetButton" type="button">遊び方の選択に戻る</button>
+          </div>
+        </div>
+      </dialog>
+    </main>
+
+    <script>
+      window.KILLER_WEB_DEMO_NO_ADS = true;
+    </script>
+    <script src="./app.js"></script>
+  </body>
+</html>
