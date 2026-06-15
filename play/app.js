@@ -22,7 +22,7 @@ const ADVENTURE_STAGES = {
   jammer: { difficulty: "hard", itemMode: "jammer", itemCount: 10, jammerCount: 4, timeLimitMs: 300000 },
   chaser: { difficulty: "hard", itemMode: "chaser", itemCount: 10, timeLimitMs: 300000, chaserIntervalMs: 2500, chaserStunMs: 5000 },
   striker: { difficulty: "hard", itemMode: "striker", itemCount: 10, timeLimitMs: 300000, strikerIntervalMs: 850, strikerStunMs: 3500 },
-  lightning: { difficulty: "hard", itemMode: "lightning", itemCount: 10, timeLimitMs: 300000, lightningIntervalMs: 3200, lightningWarnMs: 1400, lightningStrikeMs: 520 },
+  lightning: { difficulty: "hard", itemMode: "lightning", itemCount: 10, timeLimitMs: 300000, lightningIntervalMs: 3200, lightningWarnMs: 1400, lightningDangerMs: 360, lightningStrikeMs: 520 },
 };
 const PATROL_GUARDIAN_COUNT = 2;
 const SLEEPER_COUNT = 3;
@@ -1419,7 +1419,20 @@ function beginLightningWarning() {
   lightningCells = chooseLightningCells();
   lightningPhase = "warning";
   render();
-  lightningTimerId = window.setTimeout(strikeLightning, ADVENTURE_STAGES.lightning.lightningWarnMs || 1400);
+  const warnMs = ADVENTURE_STAGES.lightning.lightningWarnMs || 1400;
+  const dangerMs = Math.min(ADVENTURE_STAGES.lightning.lightningDangerMs || 360, Math.max(0, warnMs - 120));
+  if (dangerMs > 0 && warnMs > dangerMs + 80) {
+    lightningTimerId = window.setTimeout(beginLightningDanger, warnMs - dangerMs);
+  } else {
+    lightningTimerId = window.setTimeout(strikeLightning, warnMs);
+  }
+}
+
+function beginLightningDanger() {
+  if (!isLightningMode() || over || paused || blindIntroActive) return;
+  lightningPhase = "danger";
+  render();
+  lightningTimerId = window.setTimeout(strikeLightning, ADVENTURE_STAGES.lightning.lightningDangerMs || 360);
 }
 
 function handleLightningHit() {
@@ -2384,7 +2397,11 @@ function renderBoard() {
       if (strikerDirection?.row < 0) cell.classList.add("striker-up");
     }
     if (index === strikerNext) cell.classList.add("striker-next");
-    if (lightningSet.has(index)) cell.classList.add(lightningPhase === "strike" ? "lightning-strike" : "lightning-warning");
+    if (lightningSet.has(index)) {
+      cell.classList.add(lightningPhase === "strike"
+        ? "lightning-strike"
+        : lightningPhase === "danger" ? "lightning-danger" : "lightning-warning");
+    }
     if (bomberDefuseCells.has(index)) cell.classList.add("bomber-defuse-zone");
     if (sleeperBlockedCells.has(index)) {
       const blockedTurns = sleeperBlockedTurns.get(index) || sleeperBlockTurns || 1;

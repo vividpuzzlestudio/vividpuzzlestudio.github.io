@@ -398,15 +398,27 @@ h1.title-ja {
 }
 
 .cell.lightning-warning {
-  background: #fff3bd;
-  box-shadow: inset 0 0 0 3px rgba(240, 170, 32, .34);
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(122, 93, 183, .12) 0 6px,
+      rgba(122, 93, 183, .02) 6px 12px
+    ),
+    var(--cell);
+  box-shadow: inset 0 0 0 3px rgba(104, 83, 172, .3);
 }
 
 .cell.lightning-warning.selected {
-  background: #ffd96d;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(146, 96, 196, .2) 0 6px,
+      rgba(146, 96, 196, .05) 6px 12px
+    ),
+    #f3e7ff;
   box-shadow:
-    inset 0 0 0 3px rgba(230, 134, 24, .5),
-    0 0 0 2px rgba(255, 220, 92, .44);
+    inset 0 0 0 4px rgba(153, 72, 196, .56),
+    0 0 0 2px rgba(153, 72, 196, .32);
 }
 
 .cell.lightning-warning::after {
@@ -414,13 +426,41 @@ h1.title-ja {
   position: absolute;
   inset: 9px;
   z-index: 4;
-  border: 2px dashed rgba(213, 139, 20, .46);
+  border: 2px dashed rgba(104, 83, 172, .5);
   border-radius: 7px;
   background:
-    linear-gradient(116deg, transparent 0 38%, rgba(255, 219, 88, .48) 39% 50%, transparent 51% 100%);
+    linear-gradient(116deg, transparent 0 38%, rgba(177, 158, 231, .35) 39% 50%, transparent 51% 100%);
   opacity: .82;
   pointer-events: none;
   animation: lightning-warn .68s ease-in-out infinite alternate;
+}
+
+.cell.lightning-danger {
+  background: #fff0a8;
+  box-shadow:
+    inset 0 0 0 4px rgba(240, 138, 24, .58),
+    0 0 13px rgba(255, 209, 74, .42);
+}
+
+.cell.lightning-danger.selected {
+  background: #ffc9a5;
+  box-shadow:
+    inset 0 0 0 4px rgba(214, 64, 55, .66),
+    0 0 0 2px rgba(214, 64, 55, .34),
+    0 0 15px rgba(255, 126, 62, .42);
+}
+
+.cell.lightning-danger::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  z-index: 4;
+  border: 2px solid rgba(218, 111, 24, .5);
+  border-radius: 7px;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255, 244, 154, .72), rgba(255, 200, 72, .18) 58%, transparent 62%);
+  pointer-events: none;
+  animation: lightning-danger .22s ease-in-out infinite alternate;
 }
 
 .cell.lightning-strike {
@@ -2487,12 +2527,23 @@ h1.title-ja {
 
 @keyframes lightning-warn {
   0% {
-    opacity: .48;
+    opacity: .44;
     transform: scale(.97);
   }
   100% {
-    opacity: .94;
+    opacity: .86;
     transform: scale(1.02);
+  }
+}
+
+@keyframes lightning-danger {
+  0% {
+    opacity: .58;
+    transform: scale(.96);
+  }
+  100% {
+    opacity: .98;
+    transform: scale(1.03);
   }
 }
 
