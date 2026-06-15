@@ -21,6 +21,7 @@ const ADVENTURE_STAGES = {
   jammer: { difficulty: "hard", itemMode: "jammer", itemCount: 10, jammerCount: 4, timeLimitMs: 300000 },
   chaser: { difficulty: "hard", itemMode: "chaser", itemCount: 10, timeLimitMs: 300000, chaserIntervalMs: 2500, chaserStunMs: 5000 },
   striker: { difficulty: "hard", itemMode: "striker", itemCount: 10, timeLimitMs: 300000, strikerIntervalMs: 850, strikerStunMs: 3500 },
+  lightning: { difficulty: "hard", itemMode: "lightning", itemCount: 10, timeLimitMs: 300000, lightningIntervalMs: 3200, lightningWarnMs: 1400, lightningStrikeMs: 520 },
   shiftingCages: { difficulty: "veryHard", itemMode: "shiftingCages", itemCount: 8, cageShiftEvery: 5, timeLimitMs: 240000 },
 };
 const PATROL_GUARDIAN_COUNT = 2;
@@ -120,6 +121,8 @@ const TEXT = {
       adventureChaserHelp: "リアルタイムに追跡 / 5分制限",
       adventureStriker: "ストライカー",
       adventureStrikerHelp: "一直線に突進 / 5分制限",
+      adventureLightning: "雷雨",
+      adventureLightningHelp: "落雷範囲から逃げろ / 5分制限",
       adventureShiftingCages: "カオスケージ",
       adventureShiftingCagesHelp: "5手毎にシャッフル / 4分制限",
       mineSearchMineHelp: "踏んだらゲームオーバー",
@@ -141,6 +144,7 @@ const TEXT = {
       chaserStunned: "チェイサー停止！",
       strikerHit: "ストライカー直撃！ ミス +1",
       strikerStunned: "ストライカー停止！",
+      lightningHit: "落雷直撃！ ミス +1",
       mineSearchHit: "地雷を踏みました。",
       mineAdded: "地雷が1つ増えた！",
       cageShifted: "ケージ変更！",
@@ -271,6 +275,8 @@ const TEXT = {
       adventureChaserHelp: "Real-time pursuit / 5-minute limit",
       adventureStriker: "Striker",
       adventureStrikerHelp: "Straight-line rush / 5-minute limit",
+      adventureLightning: "Thunderstorm",
+      adventureLightningHelp: "Dodge lightning zones / 5-minute limit",
       adventureShiftingCages: "Chaos Cages",
       adventureShiftingCagesHelp: "Shuffle every 5 moves / 4-minute limit",
       mineSearchMineHelp: "Game over if stepped on",
@@ -292,6 +298,7 @@ const TEXT = {
       chaserStunned: "Chaser stunned!",
       strikerHit: "Striker hit! Mistake +1",
       strikerStunned: "Striker stunned!",
+      lightningHit: "Lightning hit! Mistake +1",
       mineSearchHit: "You stepped on a mine.",
       mineAdded: "A mine appeared!",
       cageShifted: "Cages changed!",
@@ -482,6 +489,9 @@ let strikerDirection = null;
 let strikerIntervalId = null;
 let strikerStunnedUntil = 0;
 let strikerStunRemainingMs = 0;
+let lightningCells = [];
+let lightningPhase = "idle";
+let lightningTimerId = null;
 let noteMode = false;
 let undoStack = [];
 let undoUsed = false;
@@ -1339,6 +1349,109 @@ function moveStriker() {
   render();
 }
 
+function isLightningMode() {
+  return currentAdventureMode() === "lightning";
+}
+
+function lightningTargets() {
+  const targets = [];
+
+  for (let row = 0; row < SIZE; row += 1) {
+    targets.push({
+      cells: Array.from({ length: SIZE }, (_, col) => indexOf(row, col)),
+    });
+  }
+
+  for (let col = 0; col < SIZE; col += 1) {
+    targets.push({
+      cells: Array.from({ length: SIZE }, (_, row) => indexOf(row, col)),
+    });
+  }
+
+  for (let boxRow = 0; boxRow < SIZE; boxRow += BOX) {
+    for (let boxCol = 0; boxCol < SIZE; boxCol += BOX) {
+      const cells = [];
+      for (let row = boxRow; row < boxRow + BOX; row += 1) {
+        for (let col = boxCol; col < boxCol + BOX; col += 1) {
+          cells.push(indexOf(row, col));
+        }
+      }
+      targets.push({ cells });
+    }
+  }
+
+  cages.forEach((cage) => {
+    if (cage.cells.length >= 2) targets.push({ cells: [...cage.cells] });
+  });
+
+  return targets;
+}
+
+function chooseLightningCells() {
+  const targets = lightningTargets();
+  if (!targets.length) return [];
+  const selectedTargets = targets.filter((target) => target.cells.includes(selected));
+  const pool = selectedTargets.length && random() < 0.6 ? selectedTargets : targets;
+  return [...pool[Math.floor(random() * pool.length)].cells];
+}
+
+function clearLightningTimer() {
+  if (lightningTimerId !== null) {
+    window.clearTimeout(lightningTimerId);
+    lightningTimerId = null;
+  }
+}
+
+function resetLightning() {
+  clearLightningTimer();
+  lightningCells = [];
+  lightningPhase = "idle";
+}
+
+function startLightningTimer(delay = ADVENTURE_STAGES.lightning.lightningIntervalMs || 3200) {
+  clearLightningTimer();
+  if (!isLightningMode() || over || paused || blindIntroActive) return;
+  lightningTimerId = window.setTimeout(beginLightningWarning, delay);
+}
+
+function beginLightningWarning() {
+  if (!isLightningMode() || over || paused || blindIntroActive) return;
+  lightningCells = chooseLightningCells();
+  lightningPhase = "warning";
+  render();
+  lightningTimerId = window.setTimeout(strikeLightning, ADVENTURE_STAGES.lightning.lightningWarnMs || 1400);
+}
+
+function handleLightningHit() {
+  if (!isLightningMode() || over) return;
+  mistakes += 1;
+  totalMistakes += 1;
+  streak = 0;
+  flashEffect(selected, "effect-lightning-hit", 650);
+  showComboToast(t("lightningHit"), "combo-toast-lg", { forceFull: true });
+  if (mistakes >= 3) {
+    finish(false);
+  } else {
+    render();
+  }
+}
+
+function strikeLightning() {
+  if (!isLightningMode() || over || paused || blindIntroActive) return;
+  lightningPhase = "strike";
+  lightningCells.forEach((cell) => flashEffect(cell, "effect-lightning", 520));
+  const hit = lightningCells.includes(selected);
+  if (hit) handleLightningHit();
+  if (over) return;
+  render();
+  lightningTimerId = window.setTimeout(() => {
+    lightningCells = [];
+    lightningPhase = "idle";
+    render();
+    startLightningTimer();
+  }, ADVENTURE_STAGES.lightning.lightningStrikeMs || 520);
+}
+
 function countSolutionsFor(puzzleValues, cageValues, limit = 2, deadline = Infinity) {
   const grid = [...puzzleValues];
   const rowMasks = Array(SIZE).fill(0);
@@ -2121,6 +2234,7 @@ function placeAdventureItems(stage) {
   if (stage.itemMode === "jammer") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   if (stage.itemMode === "chaser") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   if (stage.itemMode === "striker") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
+  if (stage.itemMode === "lightning") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   if (stage.itemMode === "shiftingCages") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   return placeItems(DIFFICULTIES[stage.difficulty].itemCount);
 }
@@ -2224,6 +2338,7 @@ function renderBoard() {
   const strikerCurrent = isStrikerMode() ? strikerCell : null;
   const strikerNext = nextStrikerCell();
   const strikerStunned = isStrikerStunned();
+  const lightningSet = new Set(isLightningMode() ? lightningCells : []);
   const bomberLimit = ADVENTURE_STAGES.bomber.bomberLimit || 4;
   const bomberDefuseCells = bomberCell !== null && bomberHeat >= bomberLimit - 1
     ? new Set(surroundingCells(bomberCell).filter((cell) => puzzle[cell] === EMPTY && entries[cell] === EMPTY))
@@ -2269,6 +2384,7 @@ function renderBoard() {
       if (strikerDirection?.row < 0) cell.classList.add("striker-up");
     }
     if (index === strikerNext) cell.classList.add("striker-next");
+    if (lightningSet.has(index)) cell.classList.add(lightningPhase === "strike" ? "lightning-strike" : "lightning-warning");
     if (bomberDefuseCells.has(index)) cell.classList.add("bomber-defuse-zone");
     if (sleeperBlockedCells.has(index)) {
       const blockedTurns = sleeperBlockedTurns.get(index) || sleeperBlockTurns || 1;
@@ -2624,6 +2740,7 @@ function renderAdventureChoices() {
     ["jammer", t("adventureJammer"), t("adventureJammerHelp")],
     ["chaser", t("adventureChaser"), t("adventureChaserHelp")],
     ["striker", t("adventureStriker"), t("adventureStrikerHelp")],
+    ["lightning", t("adventureLightning"), t("adventureLightningHelp")],
     ["shiftingCages", t("adventureShiftingCages"), t("adventureShiftingCagesHelp")],
   ].forEach(([key, title, help]) => {
     const button = document.createElement("button");
@@ -2928,6 +3045,7 @@ function adventureStageLabel(stageKey) {
   if (stageKey === "jammer") return t("adventureJammer");
   if (stageKey === "chaser") return t("adventureChaser");
   if (stageKey === "striker") return t("adventureStriker");
+  if (stageKey === "lightning") return t("adventureLightning");
   if (stageKey === "shiftingCages") return t("adventureShiftingCages");
   return stageKey;
 }
@@ -4017,6 +4135,7 @@ function startTimer() {
   startAdventureMineTimer();
   startChaserTimer();
   startStrikerTimer();
+  startLightningTimer();
 }
 
 function stopTimer() {
@@ -4029,6 +4148,7 @@ function stopTimer() {
   stopAdventureMineTimer();
   stopChaserTimer();
   stopStrikerTimer();
+  resetLightning();
 }
 
 function resumeTimer() {
@@ -4041,6 +4161,7 @@ function resumeTimer() {
   startAdventureMineTimer();
   startChaserTimer();
   startStrikerTimer();
+  startLightningTimer();
 }
 
 function currentElapsedMs() {
@@ -4437,6 +4558,8 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     strikerDirection = null;
     strikerStunnedUntil = 0;
     strikerStunRemainingMs = 0;
+    lightningCells = [];
+    lightningPhase = "idle";
     currentDailyKey = currentAdventureStage ? null : nextDailyKey;
     if (seed !== null) randomSource = seededRandom(seed);
     if (adventureStage?.itemMode === "growingMines" || adventureStage?.itemMode === "shiftingCages") {
