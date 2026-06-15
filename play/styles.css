@@ -1841,6 +1841,69 @@ h1.title-ja {
     inset: 12px 7px 3px;
     font-size: clamp(9px, 2.25cqw, 13px);
   }
+
+  .item-icon {
+    right: clamp(8px, 2.2cqw, 13px);
+    bottom: clamp(8px, 2.2cqw, 13px);
+  }
+
+  .item-icon-heart {
+    width: clamp(7px, 1.95cqw, 11px);
+    height: clamp(6px, 1.75cqw, 10px);
+    border-radius: 3px;
+  }
+
+  .item-icon-heart::before,
+  .item-icon-heart::after {
+    width: clamp(7px, 1.95cqw, 11px);
+    height: clamp(6px, 1.75cqw, 10px);
+  }
+
+  .item-icon-heart::before {
+    top: clamp(-5px, -.78cqw, -3px);
+  }
+
+  .item-icon-heart::after {
+    left: clamp(3px, .8cqw, 5px);
+  }
+
+  .item-icon-hint {
+    width: clamp(10px, 2.8cqw, 16px);
+    height: clamp(10px, 2.8cqw, 16px);
+    border-width: 2px;
+  }
+
+  .item-icon-hint::before {
+    bottom: clamp(-6px, -1.05cqw, -4px);
+    width: clamp(6px, 1.65cqw, 9px);
+    height: clamp(4px, 1.2cqw, 7px);
+  }
+
+  .item-icon-hint::after {
+    bottom: clamp(-9px, -1.55cqw, -6px);
+    width: clamp(5px, 1.45cqw, 8px);
+    height: clamp(1.5px, .42cqw, 2.4px);
+  }
+
+  .item-icon-shuffle {
+    right: clamp(6px, 1.75cqw, 10px);
+    bottom: clamp(5px, 1.55cqw, 9px);
+    width: clamp(13px, 3.5cqw, 20px);
+    height: clamp(12px, 3.15cqw, 18px);
+  }
+
+  .item-icon-shuffle::before,
+  .item-icon-shuffle::after {
+    font-size: clamp(13px, 3.3cqw, 19px);
+  }
+
+  .item-icon-shuffle::before {
+    top: clamp(-5px, -.8cqw, -3px);
+  }
+
+  .item-icon-shuffle::after {
+    bottom: clamp(-5px, -.8cqw, -3px);
+  }
 }
 
 .loading-overlay {
