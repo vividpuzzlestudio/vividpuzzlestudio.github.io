@@ -380,6 +380,24 @@ function difficultyLabel(key) {
   return TEXT[LOCALE].difficulty[key] ?? TEXT.ja.difficulty[key] ?? key;
 }
 
+function analyticsMode() {
+  if (currentAdventureStage) return "adventure";
+  if (currentDailyKey) return "daily";
+  return "standard";
+}
+
+function trackWebEvent(eventName, params = {}) {
+  if (typeof window.gtag !== "function") return;
+  window.gtag("event", eventName, {
+    game_mode: analyticsMode(),
+    difficulty: currentDifficulty,
+    adventure_stage: currentAdventureStage || "",
+    daily: Boolean(currentDailyKey),
+    practice: Boolean(currentAdventurePractice),
+    ...params,
+  });
+}
+
 function itemLabel(type) {
   return TEXT[LOCALE].item[type] ?? TEXT.ja.item[type] ?? type;
 }
@@ -3859,6 +3877,14 @@ function finish(won, options = {}) {
   const scoreRecord = canSaveRecord ? saveBestScore(recordKey, score) : null;
   if (won && !currentAdventurePractice) renderDifficultyChoices();
   render();
+  trackWebEvent(won ? "game_clear" : "game_over", {
+    record_key: recordKey,
+    time_seconds: Math.floor(elapsedMs / 1000),
+    score,
+    mistakes: totalMistakes,
+    no_mistake: noMistakeClear,
+    reason: options.reason || "",
+  });
   dialogTitle.textContent = won ? t("clear") : t("gameOver");
   if (won) {
     const badges = currentAdventurePractice
@@ -4261,6 +4287,11 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
       startTimer();
     }
     render();
+    trackWebEvent("game_start", {
+      record_key: currentRecordKey(),
+      source: options.intro ? "intro" : currentAdventureStage ? "adventure" : currentDailyKey ? "daily" : "menu",
+      item_key: itemSeedKey(),
+    });
   } finally {
     randomSource = previousRandomSource;
     setLoading(false);
