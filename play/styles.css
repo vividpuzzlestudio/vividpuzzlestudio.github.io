@@ -1673,6 +1673,156 @@ h1.title-ja {
   text-underline-offset: 3px;
 }
 
+@media (min-width: 900px) and (min-height: 560px) and (orientation: landscape) {
+  .app-shell {
+    width: min(100%, 1180px);
+    max-width: min(1180px, calc(100vw - 28px));
+    padding: max(16px, calc(env(safe-area-inset-top) + 8px)) max(18px, calc(env(safe-area-inset-right) + 14px)) max(18px, calc(env(safe-area-inset-bottom) + 12px)) max(18px, calc(env(safe-area-inset-left) + 14px));
+    grid-template-columns: minmax(430px, min(620px, calc(100svh - 118px))) minmax(320px, 420px);
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "topbar topbar"
+      "board status"
+      "board controls"
+      "board legend"
+      "board footer";
+    align-content: center;
+    align-items: start;
+    justify-content: center;
+    column-gap: 18px;
+    row-gap: 8px;
+  }
+
+  body:has(.web-demo-note) .app-shell {
+    grid-template-columns: minmax(430px, min(590px, calc(100svh - 148px))) minmax(320px, 420px);
+    grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "promo promo"
+      "topbar topbar"
+      "board status"
+      "board controls"
+      "board legend"
+      "board footer";
+  }
+
+  .web-demo-note {
+    grid-area: promo;
+    margin: 0;
+    padding: 8px 12px;
+  }
+
+  .topbar {
+    grid-area: topbar;
+  }
+
+  .status-panel {
+    grid-area: status;
+    gap: 8px;
+  }
+
+  .board-wrap {
+    grid-area: board;
+    width: min(100%, calc(100svh - 118px));
+    max-width: 620px;
+    justify-self: end;
+  }
+
+  body:has(.web-demo-note) .board-wrap {
+    width: min(100%, calc(100svh - 148px));
+    max-width: 590px;
+  }
+
+  .controls {
+    grid-area: controls;
+    padding: 0;
+  }
+
+  .item-legend {
+    grid-area: legend;
+  }
+
+  .privacy-footer {
+    grid-area: footer;
+    align-self: end;
+    padding-top: 2px;
+  }
+
+  h1 {
+    font-size: clamp(28px, 3vw, 40px);
+  }
+
+  h1.title-ja {
+    font-size: clamp(25px, 2.6vw, 34px);
+  }
+
+  .icon-button {
+    width: 46px;
+    height: 46px;
+  }
+
+  .stat {
+    min-height: 64px;
+    padding: 10px;
+  }
+
+  .stat span {
+    font-size: 12px;
+  }
+
+  .stat strong {
+    font-size: 20px;
+  }
+
+  #difficultyDisplay {
+    min-height: 24px;
+    font-size: clamp(11px, 1.25vw, 16px);
+  }
+
+  #difficultyDisplay.is-long,
+  #difficultyDisplay.is-adventure {
+    font-size: clamp(10px, 1vw, 13px);
+  }
+
+  .tool-row {
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .tool-button {
+    min-height: 48px;
+    font-size: 16px;
+  }
+
+  .pad {
+    gap: 7px;
+  }
+
+  .number-button {
+    min-height: 62px;
+    font-size: 30px;
+  }
+
+  .legend-entry {
+    min-height: 42px;
+    gap: 8px;
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .legend-entry strong {
+    font-size: 12px;
+  }
+
+  .legend-count {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+
+  .privacy-footer a {
+    font-size: 12px;
+  }
+}
+
 .loading-overlay {
   position: fixed;
   inset: 0;

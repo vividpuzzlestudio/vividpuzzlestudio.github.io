@@ -671,6 +671,30 @@ function highlightNumber() {
   return selectedValue !== EMPTY ? selectedValue : null;
 }
 
+function isGameDialogOpen() {
+  return [
+    difficultyDialog,
+    adventureDialog,
+    recordDialog,
+    firstRunDialog,
+    dialog,
+    pauseDialog,
+    resetDialog,
+  ].some((dialogElement) => dialogElement?.open);
+}
+
+function moveSelectionBy(rowDelta, colDelta) {
+  if (blindIntroActive || generating || isGameDialogOpen()) return false;
+  const nextRow = Math.max(0, Math.min(SIZE - 1, rowOf(selected) + rowDelta));
+  const nextCol = Math.max(0, Math.min(SIZE - 1, colOf(selected) + colDelta));
+  const next = indexOf(nextRow, nextCol);
+  if (next === selected) return true;
+  selected = next;
+  if (checkStrikerCollision()) return true;
+  render();
+  return true;
+}
+
 function comboLevel(count) {
   if (count >= 7) return "combo-toast-xl";
   if (count >= 5) return "combo-toast-lg";
@@ -4549,6 +4573,16 @@ document.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
     event.preventDefault();
     undoMove();
+    return;
+  }
+  const arrowMoves = {
+    ArrowUp: [-1, 0],
+    ArrowDown: [1, 0],
+    ArrowLeft: [0, -1],
+    ArrowRight: [0, 1],
+  };
+  if (event.key in arrowMoves) {
+    if (moveSelectionBy(...arrowMoves[event.key])) event.preventDefault();
     return;
   }
   if (event.key.toLowerCase() === "m") {
