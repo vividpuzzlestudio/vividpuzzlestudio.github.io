@@ -615,45 +615,21 @@ h1.title-ja {
   left: 50%;
   top: 50%;
   z-index: 9;
-  width: 38px;
-  height: 24px;
-  border: 2px solid #111820;
-  border-radius: 999px 13px 13px 999px;
-  background:
-    radial-gradient(circle at 67% 39%, #fff 0 2.4px, transparent 3.1px),
-    radial-gradient(circle at 68% 40%, #111820 0 1.2px, transparent 1.8px),
-    linear-gradient(180deg, #424a54 0%, #151a20 72%);
-  box-shadow:
-    inset -5px -4px 0 rgba(0, 0, 0, .34),
-    inset 5px 4px 0 rgba(255, 255, 255, .12);
+  width: 42px;
+  height: 28px;
+  background: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2072%2044%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22body%22%20x1%3D%220%22%20y1%3D%226%22%20x2%3D%220%22%20y2%3D%2238%22%20gradientUnits%3D%22userSpaceOnUse%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235f6872%22%2F%3E%3Cstop%20offset%3D%22.48%22%20stop-color%3D%22%23242a32%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230c1117%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22metal%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23e9edf0%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%2377818b%22%2F%3E%3C%2FlinearGradient%3E%3CradialGradient%20id%3D%22fire%22%20cx%3D%2250%25%22%20cy%3D%2250%25%22%20r%3D%2260%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23fff27b%22%2F%3E%3Cstop%20offset%3D%22.5%22%20stop-color%3D%22%23ff922d%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23ef3d24%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Cpath%20d%3D%22M3%2022c5-6.2%2010.4-9%2016-9h5v18h-5C13.4%2031%208%2028.2%203%2022Z%22%20fill%3D%22url%28%23fire%29%22%2F%3E%3Cpath%20d%3D%22M10%2022c3-3.2%206.5-4.7%2010.4-4.7H25v9.4h-4.6C16.5%2026.7%2013%2025.2%2010%2022Z%22%20fill%3D%22%23ffe861%22%2F%3E%3Cpath%20d%3D%22M20%208h31c10%200%2017%206.2%2018%2014-1%207.8-8%2014-18%2014H20C12.8%2036%208%2029.8%208%2022S12.8%208%2020%208Z%22%20fill%3D%22url%28%23body%29%22%20stroke%3D%22%23121820%22%20stroke-width%3D%223%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M53%208.7C62%2010.8%2068.1%2016%2069%2022c-.9%206-7%2011.2-16%2013.3%203.6-6.7%203.6-19.9%200-26.6Z%22%20fill%3D%22%23121820%22%20opacity%3D%22.7%22%2F%3E%3Cpath%20d%3D%22M18%2013.6c8.8-2.4%2022-2%2034%201.1%22%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%223.2%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.18%22%2F%3E%3Cpath%20d%3D%22M42.5%2016.1%2055%2013.1M42.5%2027.9%2055%2030.9%22%20stroke%3D%22%23fff%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%2249%22%20cy%3D%2217.5%22%20r%3D%222.1%22%20fill%3D%22%2310151b%22%2F%3E%3Ccircle%20cx%3D%2249%22%20cy%3D%2226.5%22%20r%3D%222.1%22%20fill%3D%22%2310151b%22%2F%3E%3Cpath%20d%3D%22M58.5%2020.2c1.9.4%203.5%201%204.8%201.8-1.3.8-2.9%201.4-4.8%201.8%22%20fill%3D%22none%22%20stroke%3D%22%2388919b%22%20stroke-width%3D%222.2%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E") center / contain no-repeat;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2078%2044%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22body%22%20x1%3D%220%22%20y1%3D%227%22%20x2%3D%220%22%20y2%3D%2237%22%20gradientUnits%3D%22userSpaceOnUse%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23626c76%22%2F%3E%3Cstop%20offset%3D%22.5%22%20stop-color%3D%22%23252b33%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230c1117%22%2F%3E%3C%2FlinearGradient%3E%3CradialGradient%20id%3D%22fire%22%20cx%3D%2245%25%22%20cy%3D%2250%25%22%20r%3D%2265%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23fff06a%22%2F%3E%3Cstop%20offset%3D%22.52%22%20stop-color%3D%22%23ff8b2a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23e93424%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Cpath%20d%3D%22M2%2022c6-7.2%2013-10.8%2022-10.8h8v21.6h-8C15%2032.8%208%2029.2%202%2022Z%22%20fill%3D%22url%28%23fire%29%22%2F%3E%3Cpath%20d%3D%22M10%2022c4-3.8%208.4-5.5%2013.4-5.5h7.2v11h-7.2C18.4%2027.5%2014%2025.8%2010%2022Z%22%20fill%3D%22%23ffe96c%22%2F%3E%3Cpath%20d%3D%22M19%208h34c12%200%2021.2%206.2%2023%2014-1.8%207.8-11%2014-23%2014H19C12.3%2036%208%2030.1%208%2022S12.3%208%2019%208Z%22%20fill%3D%22url%28%23body%29%22%20stroke%3D%22%23121820%22%20stroke-width%3D%223%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M56%208.9c10.6%202.1%2018.4%207.3%2020%2013.1-1.6%205.8-9.4%2011-20%2013.1%204.1-6.8%204.1-19.4%200-26.2Z%22%20fill%3D%22%23121820%22%20opacity%3D%22.72%22%2F%3E%3Cpath%20d%3D%22M18.2%2013.5c8.6-2.1%2022-1.8%2034.3%201%22%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%223.2%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.18%22%2F%3E%3Cpath%20d%3D%22M45.4%2016%2059%2012.8M45.4%2028%2059%2031.2%22%20stroke%3D%22%23fff%22%20stroke-width%3D%224.2%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%2251.8%22%20cy%3D%2217.4%22%20r%3D%222.1%22%20fill%3D%22%230e141a%22%2F%3E%3Ccircle%20cx%3D%2251.8%22%20cy%3D%2226.6%22%20r%3D%222.1%22%20fill%3D%22%230e141a%22%2F%3E%3Cpath%20d%3D%22M63.6%2020.2c2%20.4%203.8%201%205.2%201.8-1.4.8-3.2%201.4-5.2%201.8%22%20fill%3D%22none%22%20stroke%3D%22%238a939d%22%20stroke-width%3D%222.2%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E");
   filter: drop-shadow(0 2px 2px rgba(32, 38, 45, .28));
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
 
 .striker-marker::before {
-  content: "";
-  position: absolute;
-  left: -8px;
-  top: 50%;
-  width: 10px;
-  height: 13px;
-  border-radius: 70% 0 0 70%;
-  background: linear-gradient(90deg, #f15c35 0%, #ffcf5e 70%, transparent 100%);
-  transform: translateY(-50%);
+  display: none;
 }
 
 .striker-marker::after {
-  content: "";
-  position: absolute;
-  right: 7px;
-  top: 10px;
-  width: 9px;
-  height: 2.5px;
-  border-radius: 999px;
-  background: #fff;
-  transform: rotate(18deg);
-  opacity: .9;
+  display: none;
 }
 
 .striker-left .striker-marker {
