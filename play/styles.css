@@ -323,6 +323,8 @@ h1.title-ja {
 .cell.effect-chaser,
 .cell.effect-chaser-blocked,
 .cell.effect-chaser-stun,
+.cell.effect-striker,
+.cell.effect-striker-stun,
 .cell.effect-sleeper-blocked,
 .cell.effect-jammer-blocked {
   animation: patrol-pulse .5s ease-out;
@@ -366,6 +368,29 @@ h1.title-ja {
 }
 
 .cell.chaser-stunned {
+  background: #ece5f7;
+}
+
+.cell.striker-next::after {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border: 2px dashed rgba(224, 75, 38, .44);
+  border-radius: 8px;
+  background: rgba(224, 75, 38, .08);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.cell.striker-blocked {
+  background: #ffe5d8;
+}
+
+.cell.striker-blocked.selected {
+  background: #ffc2ad;
+}
+
+.cell.striker-stunned {
   background: #ece5f7;
 }
 
@@ -581,6 +606,69 @@ h1.title-ja {
 }
 
 .chaser-stunned .chaser-marker {
+  opacity: .72;
+  filter: grayscale(.25) drop-shadow(0 2px 2px rgba(32, 38, 45, .18));
+}
+
+.striker-marker {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 9;
+  width: 38px;
+  height: 24px;
+  border: 2px solid #111820;
+  border-radius: 999px 13px 13px 999px;
+  background:
+    radial-gradient(circle at 67% 39%, #fff 0 2.4px, transparent 3.1px),
+    radial-gradient(circle at 68% 40%, #111820 0 1.2px, transparent 1.8px),
+    linear-gradient(180deg, #424a54 0%, #151a20 72%);
+  box-shadow:
+    inset -5px -4px 0 rgba(0, 0, 0, .34),
+    inset 5px 4px 0 rgba(255, 255, 255, .12);
+  filter: drop-shadow(0 2px 2px rgba(32, 38, 45, .28));
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.striker-marker::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  width: 10px;
+  height: 13px;
+  border-radius: 70% 0 0 70%;
+  background: linear-gradient(90deg, #f15c35 0%, #ffcf5e 70%, transparent 100%);
+  transform: translateY(-50%);
+}
+
+.striker-marker::after {
+  content: "";
+  position: absolute;
+  right: 7px;
+  top: 10px;
+  width: 9px;
+  height: 2.5px;
+  border-radius: 999px;
+  background: #fff;
+  transform: rotate(18deg);
+  opacity: .9;
+}
+
+.striker-left .striker-marker {
+  transform: translate(-50%, -50%) rotate(180deg);
+}
+
+.striker-vertical .striker-marker {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.striker-up .striker-marker {
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+
+.striker-stunned .striker-marker {
   opacity: .72;
   filter: grayscale(.25) drop-shadow(0 2px 2px rgba(32, 38, 45, .18));
 }

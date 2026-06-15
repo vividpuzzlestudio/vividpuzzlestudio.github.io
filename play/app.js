@@ -20,6 +20,7 @@ const ADVENTURE_STAGES = {
   sleeper: { difficulty: "hard", itemMode: "sleeper", itemCount: 10, timeLimitMs: 300000, sleeperBlockTurns: 3 },
   jammer: { difficulty: "hard", itemMode: "jammer", itemCount: 10, jammerCount: 4, timeLimitMs: 300000 },
   chaser: { difficulty: "hard", itemMode: "chaser", itemCount: 10, timeLimitMs: 300000, chaserIntervalMs: 2500, chaserStunMs: 5000 },
+  striker: { difficulty: "hard", itemMode: "striker", itemCount: 10, timeLimitMs: 300000, strikerIntervalMs: 850, strikerStunMs: 3500 },
   shiftingCages: { difficulty: "veryHard", itemMode: "shiftingCages", itemCount: 8, cageShiftEvery: 5, timeLimitMs: 240000 },
 };
 const PATROL_GUARDIAN_COUNT = 2;
@@ -117,6 +118,8 @@ const TEXT = {
       adventureJammerHelp: "ケージ内の情報を隠す / 5分制限",
       adventureChaser: "チェイサー",
       adventureChaserHelp: "リアルタイムに追跡 / 5分制限",
+      adventureStriker: "ストライカー",
+      adventureStrikerHelp: "一直線に突進 / 5分制限",
       adventureShiftingCages: "カオスケージ",
       adventureShiftingCagesHelp: "5手毎にシャッフル / 4分制限",
       mineSearchMineHelp: "踏んだらゲームオーバー",
@@ -136,6 +139,8 @@ const TEXT = {
       chaserBlocked: "このマスはチェイサーがいます。",
       chaserHit: "チェイサー接触！ ミス +1",
       chaserStunned: "チェイサー停止！",
+      strikerHit: "ストライカー直撃！ ミス +1",
+      strikerStunned: "ストライカー停止！",
       mineSearchHit: "地雷を踏みました。",
       mineAdded: "地雷が1つ増えた！",
       cageShifted: "ケージ変更！",
@@ -264,6 +269,8 @@ const TEXT = {
       adventureJammerHelp: "Hides cage information / 5-minute limit",
       adventureChaser: "Chaser",
       adventureChaserHelp: "Real-time pursuit / 5-minute limit",
+      adventureStriker: "Striker",
+      adventureStrikerHelp: "Straight-line rush / 5-minute limit",
       adventureShiftingCages: "Chaos Cages",
       adventureShiftingCagesHelp: "Shuffle every 5 moves / 4-minute limit",
       mineSearchMineHelp: "Game over if stepped on",
@@ -283,6 +290,8 @@ const TEXT = {
       chaserBlocked: "The chaser is on this cell.",
       chaserHit: "Chaser hit! Mistake +1",
       chaserStunned: "Chaser stunned!",
+      strikerHit: "Striker hit! Mistake +1",
+      strikerStunned: "Striker stunned!",
       mineSearchHit: "You stepped on a mine.",
       mineAdded: "A mine appeared!",
       cageShifted: "Cages changed!",
@@ -468,6 +477,11 @@ let chaserRetired = false;
 let chaserIntervalId = null;
 let chaserStunnedUntil = 0;
 let chaserStunRemainingMs = 0;
+let strikerCell = null;
+let strikerDirection = null;
+let strikerIntervalId = null;
+let strikerStunnedUntil = 0;
+let strikerStunRemainingMs = 0;
 let noteMode = false;
 let undoStack = [];
 let undoUsed = false;
@@ -1167,6 +1181,137 @@ function moveChaser() {
     handleChaserHit();
     return;
   }
+  render();
+}
+
+function isStrikerMode() {
+  return currentAdventureMode() === "striker";
+}
+
+function randomStrikerSpawn() {
+  const side = Math.floor(random() * 4);
+  const offset = Math.floor(random() * SIZE);
+  if (side === 0) return { cell: indexOf(offset, 0), direction: { row: 0, col: 1 }, axis: "horizontal" };
+  if (side === 1) return { cell: indexOf(offset, SIZE - 1), direction: { row: 0, col: -1 }, axis: "horizontal" };
+  if (side === 2) return { cell: indexOf(0, offset), direction: { row: 1, col: 0 }, axis: "vertical" };
+  return { cell: indexOf(SIZE - 1, offset), direction: { row: -1, col: 0 }, axis: "vertical" };
+}
+
+function spawnStriker(avoidSelected = false) {
+  if (!isStrikerMode()) {
+    strikerCell = null;
+    strikerDirection = null;
+    return;
+  }
+  let spawn = randomStrikerSpawn();
+  for (let attempt = 0; avoidSelected && spawn.cell === selected && attempt < 16; attempt += 1) {
+    spawn = randomStrikerSpawn();
+  }
+  strikerCell = spawn.cell;
+  strikerDirection = spawn.direction;
+}
+
+function nextStrikerCell() {
+  if (!isStrikerMode() || strikerCell === null || !strikerDirection || isStrikerStunned()) return null;
+  const row = rowOf(strikerCell) + strikerDirection.row;
+  const col = colOf(strikerCell) + strikerDirection.col;
+  if (row < 0 || row >= SIZE || col < 0 || col >= SIZE) return null;
+  return indexOf(row, col);
+}
+
+function setupStriker() {
+  strikerCell = null;
+  strikerDirection = null;
+  strikerStunnedUntil = 0;
+  strikerStunRemainingMs = 0;
+  if (!isStrikerMode()) return;
+  spawnStriker(true);
+}
+
+function currentStrikerStunRemaining() {
+  return Math.max(0, strikerStunnedUntil - Date.now(), strikerStunRemainingMs);
+}
+
+function isStrikerStunned() {
+  return isStrikerMode() && strikerStunnedUntil > Date.now();
+}
+
+function stopStrikerTimer() {
+  if (strikerIntervalId !== null) {
+    window.clearInterval(strikerIntervalId);
+    strikerIntervalId = null;
+  }
+  if (strikerStunnedUntil > Date.now()) {
+    strikerStunRemainingMs = Math.max(0, strikerStunnedUntil - Date.now());
+  }
+  strikerStunnedUntil = 0;
+}
+
+function startStrikerTimer() {
+  if (strikerIntervalId !== null) {
+    window.clearInterval(strikerIntervalId);
+    strikerIntervalId = null;
+  }
+  if (!isStrikerMode() || over || paused || blindIntroActive) return;
+  if (strikerStunRemainingMs > 0) {
+    strikerStunnedUntil = Date.now() + strikerStunRemainingMs;
+    strikerStunRemainingMs = 0;
+  }
+  const interval = ADVENTURE_STAGES.striker.strikerIntervalMs || 900;
+  strikerIntervalId = window.setInterval(moveStriker, interval);
+}
+
+function stunStriker(ms = ADVENTURE_STAGES.striker.strikerStunMs || 3500) {
+  if (!isStrikerMode() || strikerCell === null) return false;
+  strikerStunnedUntil = Date.now() + ms;
+  strikerStunRemainingMs = 0;
+  flashEffect(strikerCell, "effect-striker-stun", 700);
+  showComboToast(t("strikerStunned"), "combo-toast-normal");
+  render();
+  return true;
+}
+
+function stunStrikerIfHit(targetCells) {
+  if (!isStrikerMode() || strikerCell === null || !targetCells.includes(strikerCell)) return false;
+  return stunStriker();
+}
+
+function handleStrikerHit() {
+  if (!isStrikerMode() || over || strikerCell === null) return;
+  mistakes += 1;
+  totalMistakes += 1;
+  streak = 0;
+  flashEffect(selected, "effect-error", 520);
+  showComboToast(t("strikerHit"), "combo-toast-xl", { forceFull: true });
+  spawnStriker(true);
+  if (mistakes >= 3) {
+    finish(false);
+  } else {
+    render();
+  }
+}
+
+function checkStrikerCollision() {
+  if (!isStrikerMode() || over || paused || blindIntroActive || isStrikerStunned()) return false;
+  if (strikerCell !== selected) return false;
+  handleStrikerHit();
+  return true;
+}
+
+function moveStriker() {
+  if (!isStrikerMode() || over || paused || blindIntroActive) return;
+  if (isStrikerStunned()) {
+    render();
+    return;
+  }
+  const next = nextStrikerCell();
+  if (next === null) {
+    spawnStriker(false);
+  } else {
+    strikerCell = next;
+  }
+  flashEffect(strikerCell, "effect-striker", 360);
+  if (checkStrikerCollision()) return;
   render();
 }
 
@@ -1951,6 +2096,7 @@ function placeAdventureItems(stage) {
   if (stage.itemMode === "sleeper") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   if (stage.itemMode === "jammer") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   if (stage.itemMode === "chaser") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
+  if (stage.itemMode === "striker") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   if (stage.itemMode === "shiftingCages") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   return placeItems(DIFFICULTIES[stage.difficulty].itemCount);
 }
@@ -2051,6 +2197,9 @@ function renderBoard() {
   const chaserCurrent = currentChaserCell();
   const chaserNext = nextChaserCell();
   const chaserStunned = isChaserStunned();
+  const strikerCurrent = isStrikerMode() ? strikerCell : null;
+  const strikerNext = nextStrikerCell();
+  const strikerStunned = isStrikerStunned();
   const bomberLimit = ADVENTURE_STAGES.bomber.bomberLimit || 4;
   const bomberDefuseCells = bomberCell !== null && bomberHeat >= bomberLimit - 1
     ? new Set(surroundingCells(bomberCell).filter((cell) => puzzle[cell] === EMPTY && entries[cell] === EMPTY))
@@ -2089,6 +2238,13 @@ function renderBoard() {
     if (index === bomberNext) cell.classList.add("bomber-next");
     if (index === chaserCurrent) cell.classList.add("chaser-blocked", chaserStunned ? "chaser-stunned" : "chaser-active");
     if (index === chaserNext) cell.classList.add("chaser-next");
+    if (index === strikerCurrent) {
+      cell.classList.add("striker-blocked", strikerStunned ? "striker-stunned" : "striker-active");
+      if (strikerDirection?.row !== 0) cell.classList.add("striker-vertical");
+      if (strikerDirection?.col < 0) cell.classList.add("striker-left");
+      if (strikerDirection?.row < 0) cell.classList.add("striker-up");
+    }
+    if (index === strikerNext) cell.classList.add("striker-next");
     if (bomberDefuseCells.has(index)) cell.classList.add("bomber-defuse-zone");
     if (sleeperBlockedCells.has(index)) {
       const blockedTurns = sleeperBlockedTurns.get(index) || sleeperBlockTurns || 1;
@@ -2184,6 +2340,13 @@ function renderBoard() {
       cell.append(marker);
     }
 
+    if (index === strikerCurrent) {
+      const marker = document.createElement("span");
+      marker.className = "striker-marker";
+      marker.setAttribute("aria-hidden", "true");
+      cell.append(marker);
+    }
+
     if (sleeperCells.includes(index) && entries[index] === EMPTY) {
       const marker = document.createElement("span");
       marker.className = "sleeper-marker";
@@ -2194,6 +2357,7 @@ function renderBoard() {
     cell.addEventListener("click", () => {
       if (blindIntroActive) return;
       selected = index;
+      if (checkStrikerCollision()) return;
       render();
     });
 
@@ -2435,6 +2599,7 @@ function renderAdventureChoices() {
     ["sleeper", t("adventureSleeper"), t("adventureSleeperHelp")],
     ["jammer", t("adventureJammer"), t("adventureJammerHelp")],
     ["chaser", t("adventureChaser"), t("adventureChaserHelp")],
+    ["striker", t("adventureStriker"), t("adventureStrikerHelp")],
     ["shiftingCages", t("adventureShiftingCages"), t("adventureShiftingCagesHelp")],
   ].forEach(([key, title, help]) => {
     const button = document.createElement("button");
@@ -2738,6 +2903,7 @@ function adventureStageLabel(stageKey) {
   if (stageKey === "sleeper") return t("adventureSleeper");
   if (stageKey === "jammer") return t("adventureJammer");
   if (stageKey === "chaser") return t("adventureChaser");
+  if (stageKey === "striker") return t("adventureStriker");
   if (stageKey === "shiftingCages") return t("adventureShiftingCages");
   return stageKey;
 }
@@ -3238,6 +3404,9 @@ function snapshotState() {
     chaserPreviousCell,
     chaserRetired,
     chaserStunRemainingMs: currentChaserStunRemaining(),
+    strikerCell,
+    strikerDirection: strikerDirection ? { ...strikerDirection } : null,
+    strikerStunRemainingMs: currentStrikerStunRemaining(),
   };
 }
 
@@ -3270,6 +3439,10 @@ function restoreSnapshot(snapshot) {
   chaserRetired = Boolean(snapshot.chaserRetired);
   chaserStunRemainingMs = snapshot.chaserStunRemainingMs || 0;
   chaserStunnedUntil = chaserStunRemainingMs > 0 ? Date.now() + chaserStunRemainingMs : 0;
+  strikerCell = snapshot.strikerCell ?? null;
+  strikerDirection = snapshot.strikerDirection ? { ...snapshot.strikerDirection } : null;
+  strikerStunRemainingMs = snapshot.strikerStunRemainingMs || 0;
+  strikerStunnedUntil = strikerStunRemainingMs > 0 ? Date.now() + strikerStunRemainingMs : 0;
   normalizeSleeperBlocks();
   buildCageLookups();
 }
@@ -3308,6 +3481,9 @@ function sealItemEffectsInLastUndo(inputCell, scoreBeforeInput, streakBeforeInpu
     entry.chaserPreviousCell = chaserPreviousCell;
     entry.chaserRetired = chaserRetired;
     entry.chaserStunRemainingMs = currentChaserStunRemaining();
+    entry.strikerCell = strikerCell;
+    entry.strikerDirection = strikerDirection ? { ...strikerDirection } : null;
+    entry.strikerStunRemainingMs = currentStrikerStunRemaining();
     clearedCells.forEach((cell) => {
       entry.entries[cell] = EMPTY;
     });
@@ -3339,6 +3515,9 @@ function sealItemEffectsInLastUndo(inputCell, scoreBeforeInput, streakBeforeInpu
   snapshot.chaserPreviousCell = chaserPreviousCell;
   snapshot.chaserRetired = chaserRetired;
   snapshot.chaserStunRemainingMs = currentChaserStunRemaining();
+  snapshot.strikerCell = strikerCell;
+  snapshot.strikerDirection = strikerDirection ? { ...strikerDirection } : null;
+  snapshot.strikerStunRemainingMs = currentStrikerStunRemaining();
   snapshot.score = Math.max(scoreBeforeInput, score - inputPoints);
   snapshot.streak = streakBeforeInput;
   snapshot.activeNumber = null;
@@ -3590,6 +3769,7 @@ function triggerItem(index) {
     result.clearedCells = cleared;
     const defeated = defeatPatrolGuardians(blastCells);
     stunChaserIfHit(blastCells);
+    stunStrikerIfHit(blastCells);
     message(`Mine cleared ${cleared.length} cells.`);
     const points = cleared.length * 100;
     addScore(points);
@@ -3812,6 +3992,7 @@ function startTimer() {
   }, 250);
   startAdventureMineTimer();
   startChaserTimer();
+  startStrikerTimer();
 }
 
 function stopTimer() {
@@ -3823,6 +4004,7 @@ function stopTimer() {
   }
   stopAdventureMineTimer();
   stopChaserTimer();
+  stopStrikerTimer();
 }
 
 function resumeTimer() {
@@ -3834,6 +4016,7 @@ function resumeTimer() {
   }, 250);
   startAdventureMineTimer();
   startChaserTimer();
+  startStrikerTimer();
 }
 
 function currentElapsedMs() {
@@ -4083,6 +4266,9 @@ function saveInitialState() {
     chaserPreviousCell,
     chaserRetired,
     chaserStunRemainingMs: currentChaserStunRemaining(),
+    strikerCell,
+    strikerDirection: strikerDirection ? { ...strikerDirection } : null,
+    strikerStunRemainingMs: currentStrikerStunRemaining(),
     solution: [...solution],
     puzzle: [...puzzle],
     cages: cages.map((cage) => ({ id: cage.id, cells: [...cage.cells], sum: cage.sum })),
@@ -4129,6 +4315,10 @@ function retryGame() {
   chaserRetired = Boolean(initialState.chaserRetired);
   chaserStunRemainingMs = initialState.chaserStunRemainingMs || 0;
   chaserStunnedUntil = chaserStunRemainingMs > 0 ? Date.now() + chaserStunRemainingMs : 0;
+  strikerCell = initialState.strikerCell ?? null;
+  strikerDirection = initialState.strikerDirection ? { ...initialState.strikerDirection } : null;
+  strikerStunRemainingMs = initialState.strikerStunRemainingMs || 0;
+  strikerStunnedUntil = strikerStunRemainingMs > 0 ? Date.now() + strikerStunRemainingMs : 0;
   normalizeSleeperBlocks();
   solution = [...initialState.solution];
   puzzle = [...initialState.puzzle];
@@ -4219,6 +4409,10 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     chaserRetired = false;
     chaserStunnedUntil = 0;
     chaserStunRemainingMs = 0;
+    strikerCell = null;
+    strikerDirection = null;
+    strikerStunnedUntil = 0;
+    strikerStunRemainingMs = 0;
     currentDailyKey = currentAdventureStage ? null : nextDailyKey;
     if (seed !== null) randomSource = seededRandom(seed);
     if (adventureStage?.itemMode === "growingMines" || adventureStage?.itemMode === "shiftingCages") {
@@ -4247,6 +4441,7 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     setupSleeper();
     setupJammer();
     setupChaser();
+    setupStriker();
     const patrolCells = currentPatrolCells();
     const patrolBlockedCells = patrolBlockedCellsFor(patrolCells);
     const bomberCell = currentBomberCell();
