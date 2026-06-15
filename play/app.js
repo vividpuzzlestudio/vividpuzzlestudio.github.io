@@ -15,6 +15,7 @@ const ADVENTURE_STAGES = {
   blind: { difficulty: "normal", itemMode: "blind", itemCount: 12, timeLimitMs: 300000 },
   mineSearch: { difficulty: "normal", itemMode: "mineSearch", mineCount: 12, hintCount: 4 },
   heartbeat: { difficulty: "hard", itemMode: "heartbeat", itemCount: 16, heartDeadlineMs: 30000, heartBoostMs: 22000 },
+  shiftingCages: { difficulty: "hard", itemMode: "shiftingCages", itemCount: 8, cageShiftEvery: 5, timeLimitMs: 240000 },
   patrol: { difficulty: "hard", itemMode: "patrol", itemCount: 10, timeLimitMs: 240000 },
   bomber: { difficulty: "hard", itemMode: "bomber", itemCount: 10, timeLimitMs: 300000, bomberLimit: 4 },
   sleeper: { difficulty: "hard", itemMode: "sleeper", itemCount: 10, timeLimitMs: 300000, sleeperBlockTurns: 3 },
@@ -22,7 +23,6 @@ const ADVENTURE_STAGES = {
   chaser: { difficulty: "hard", itemMode: "chaser", itemCount: 10, timeLimitMs: 300000, chaserIntervalMs: 2500, chaserStunMs: 5000 },
   striker: { difficulty: "hard", itemMode: "striker", itemCount: 10, timeLimitMs: 300000, strikerIntervalMs: 850, strikerStunMs: 3500 },
   lightning: { difficulty: "hard", itemMode: "lightning", itemCount: 10, timeLimitMs: 300000, lightningIntervalMs: 3200, lightningWarnMs: 1400, lightningStrikeMs: 520 },
-  shiftingCages: { difficulty: "veryHard", itemMode: "shiftingCages", itemCount: 8, cageShiftEvery: 5, timeLimitMs: 240000 },
 };
 const PATROL_GUARDIAN_COUNT = 2;
 const SLEEPER_COUNT = 3;
@@ -2734,6 +2734,7 @@ function renderAdventureChoices() {
     ["blind", t("adventureBlind"), t("adventureBlindHelp")],
     ["mineSearch", t("adventureMineSearch"), t("adventureMineSearchHelp")],
     ["heartbeat", t("adventureHeartbeat"), t("adventureHeartbeatHelp")],
+    ["shiftingCages", t("adventureShiftingCages"), t("adventureShiftingCagesHelp")],
     ["patrol", t("adventurePatrol"), t("adventurePatrolHelp")],
     ["bomber", t("adventureBomber"), t("adventureBomberHelp")],
     ["sleeper", t("adventureSleeper"), t("adventureSleeperHelp")],
@@ -2741,7 +2742,6 @@ function renderAdventureChoices() {
     ["chaser", t("adventureChaser"), t("adventureChaserHelp")],
     ["striker", t("adventureStriker"), t("adventureStrikerHelp")],
     ["lightning", t("adventureLightning"), t("adventureLightningHelp")],
-    ["shiftingCages", t("adventureShiftingCages"), t("adventureShiftingCagesHelp")],
   ].forEach(([key, title, help]) => {
     const button = document.createElement("button");
     button.className = "difficulty-button adventure-button";
