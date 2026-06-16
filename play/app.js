@@ -1,6 +1,8 @@
 ﻿const SIZE = 9;
 const BOX = 3;
 const EMPTY = 0;
+const CELL_COUNT = SIZE * SIZE;
+const MAX_LIVES = 3;
 const DIFFICULTIES = {
   easy: { blanks: 42, itemCount: 7 },
   normal: { blanks: 52, itemCount: 9 },
@@ -9,6 +11,7 @@ const DIFFICULTIES = {
   extreme: { blanks: 81, itemCount: 12, loose: true },
 };
 const ADVENTURE_STAGES = {
+  rogueRun: { difficulty: "hard", itemMode: "rogueRun", itemCount: 12, timeLimitMs: 300000, stages: 5 },
   hintRain: { difficulty: "normal", itemMode: "allHint", timeLimitMs: 120000 },
   heartRush: { difficulty: "hard", itemMode: "allHeart", timeLimitMs: 180000 },
   growingMines: { difficulty: "hard", itemMode: "growingMines", initialMines: 8, mineIntervalMs: 10000 },
@@ -33,7 +36,7 @@ const TEXT = {
     difficulty: { easy: "イージー", normal: "ノーマル", hard: "ハード", veryHard: "ベリーハード", extreme: "エクストリーム" },
     difficultyHelp: { easy: "数字多め", normal: "標準", hard: "数字少なめ", veryHard: "初期数字なし", extreme: "アイテム前提" },
     item: { mine: "地雷", heart: "ハート", hint: "ヒント", shuffle: "シャッフル" },
-    itemHelp: { mine: "周囲8マスの数字を消す", heart: "ミスを1つ減らす", hint: "周囲8マスを2択にする", shuffle: "ケージ配置を変える" },
+    itemHelp: { mine: "周囲8マスの数字を消す", heart: "ライフを1つ回復する", hint: "周囲8マスを2択にする", shuffle: "ケージ配置を変える" },
     ui: {
       appTitle: "キラーアイテムナンプレ",
       gameInfo: "ゲーム情報",
@@ -47,7 +50,7 @@ const TEXT = {
       noRecordSummary: "まだ記録はありません",
       difficultyLabel: "難易度",
       time: "時間",
-      mistakes: "ミス",
+      mistakes: "ライフ",
       score: "スコア",
       board: "ゲーム盤",
       numberInput: "数字入力",
@@ -59,6 +62,10 @@ const TEXT = {
       generating: "生成中...",
       selectDifficulty: "遊び方を選ぶ",
       itemPicker: "登場アイテム",
+      normalPlaySection: "通常プレイ",
+      specialPlaySection: "特殊な遊び方",
+      chainPlayOpen: "ローグラン",
+      chainPlayOpenHelp: "能力を選んで5連戦",
       firstRunTitle: "はじめての方へ",
       firstRunText: "地雷・ハート・ヒントが発動する、少し変わったキラーナンプレです。",
       itemIntro: "アイテム紹介",
@@ -90,7 +97,7 @@ const TEXT = {
       adventurePrefix: "アドベンチャー\n{label}",
       adventureTitle: "アドベンチャー",
       adventureOpen: "アドベンチャー",
-      adventureOpenHelp: "特殊ルールのステージ",
+      adventureOpenHelp: "特殊ルールに挑戦",
       adventureIntro: "いつもと違うルールで、少し変わった盤面に挑戦できます。",
       adventurePractice: "練習",
       adventurePracticeHelp: "時間制限なし / 記録なし",
@@ -125,6 +132,60 @@ const TEXT = {
       adventureLightningHelp: "落雷範囲から逃げろ / 5分制限",
       adventureShiftingCages: "カオスケージ",
       adventureShiftingCagesHelp: "5手毎にシャッフル / 4分制限",
+      adventureRogueRun: "ローグラン",
+      adventureRogueRunHelp: "能力を選んで5連戦",
+      rogueRunStage: "ステージ {current}/{total}",
+      rogueRunStageNamed: "{current}/{total} {name}",
+      rogueInitialPower: "初期能力",
+      rogueAbilityPanel: "能力",
+      rogueRewardTitle: "能力を選ぶ",
+      rogueRewardIntro: "次のステージに持ち越す能力を1つ選んでください。",
+      rogueRewardIntroStart: "最初の能力を1つ選んでローグランを始めます。",
+      rogueNextStage: "次のステージへ",
+      rogueRunClear: "ローグラン制覇！",
+      rogueAbilities: "獲得能力",
+      rogueNoAbilities: "能力なし",
+      rogueStageClear: "ステージ {current} クリア",
+      rogueAbilityHeartPlus: "ハート強化",
+      rogueAbilityHeartPlusHelp: "ハートの回復量が1増える（重複可）",
+      rogueAbilityHeartTime: "ハート時計",
+      rogueAbilityHeartTimeHelp: "ハートは時間も10秒回復させる",
+      rogueAbilityHintSingle: "確定ヒント",
+      rogueAbilityHintSingleHelp: "ヒントの効果が2択から1択になる",
+      rogueAbilityHintExpand: "広域ヒント",
+      rogueAbilityHintExpandHelp: "ヒント発動時の範囲が少し広がる（重複可）",
+      rogueAbilityMineGuard: "不発ガード",
+      rogueAbilityMineGuardHelp: "地雷が半分の確率で不発（重複で確率上昇）",
+      rogueAbilityMineCross: "十字防爆",
+      rogueAbilityMineCrossHelp: "地雷発動時の消去範囲を少し狭める",
+      rogueAbilityShuffleEasy: "整列シャッフル",
+      rogueAbilityShuffleEasyHelp: "シャッフル発動時にケージが少し整理される（重複でさらに整理）",
+      rogueMasteryHeartPlus: "生命の泉",
+      rogueMasteryHintExpand: "千里眼",
+      rogueMasteryMineGuard: "防爆フィールド",
+      rogueMasteryShuffleEasy: "整然ケージ",
+      rogueAbilityHeartStock: "ハート補給",
+      rogueAbilityHeartStockHelp: "各ステージにハートを2個追加",
+      rogueAbilityHintStock: "ヒント補給",
+      rogueAbilityHintStockHelp: "各ステージにヒントを2個追加",
+      rogueAbilityShuffleStock: "シャッフル補給",
+      rogueAbilityShuffleStockHelp: "各ステージにシャッフルを2個追加",
+      rogueAbilityLastCellHint: "ラストヒント",
+      rogueAbilityLastCellHintHelp: "残り1マスの列・ブロック・ケージを1択ヒント化",
+      rogueAbilityCalmGimmicks: "スローテンポ",
+      rogueAbilityCalmGimmicksHelp: "敵と落雷の動きが少しゆっくりになる",
+      rogueAbilityComboBonus: "集中力",
+      rogueAbilityComboBonusHelp: "正解した際のスコアが少し増える",
+      rogueStageWarmup: "準備",
+      rogueStageMineGrowth: "増える地雷",
+      rogueStageGuardBomb: "封鎖と爆弾",
+      rogueStageHiddenStorm: "隠れる雷雨",
+      rogueStageFinal: "総力戦",
+      rogueHeartBoost: "ハート ライフ {n}回復！",
+      rogueHeartTime: "時間 10秒回復！",
+      rogueMineBlocked: "地雷 不発！",
+      rogueHintSingle: "ヒント {n}マス 確定！ +30",
+      rogueLastCellHint: "ラストヒント {n}マス 確定！",
       mineSearchMineHelp: "踏んだらゲームオーバー",
       heartTimeHelp: "時間を回復",
       timeUp: "時間切れです。",
@@ -140,11 +201,11 @@ const TEXT = {
       jammerCleared: "ジャマー解除！",
       jammerBlocked: "このマスはジャマーがいます。",
       chaserBlocked: "このマスはチェイサーがいます。",
-      chaserHit: "チェイサー接触！ ミス +1",
+      chaserHit: "チェイサー接触！ ライフ -1",
       chaserStunned: "チェイサー停止！",
-      strikerHit: "ストライカー直撃！ ミス +1",
+      strikerHit: "ストライカー直撃！ ライフ -1",
       strikerStunned: "ストライカー停止！",
-      lightningHit: "落雷直撃！ ミス +1",
+      lightningHit: "落雷直撃！ ライフ -1",
       mineSearchHit: "地雷を踏みました。",
       mineAdded: "地雷が1つ増えた！",
       cageShifted: "ケージ変更！",
@@ -156,9 +217,10 @@ const TEXT = {
       bestTimeLabel: "ベストタイム",
       bestScoreLabel: "ベストスコア",
       difficultyResult: "難易度",
+      mistakeResult: "ミス回数",
       mistakeCount: "{n} 回",
-      gameOverText: "3回ミスしました。",
-      revived: "復活！ ミス 0/3",
+      gameOverText: "ライフがなくなりました。",
+      revived: "復活！ ライフ 3/3",
       adUnavailable: "この環境では広告を表示できません。",
       adPreparing: "広告を準備中です。少し待ってから試してください。",
       adClosed: "広告が閉じられました。",
@@ -171,12 +233,12 @@ const TEXT = {
       blockComplete: "ブロック完成！",
       streak: "{streak}連続！ +{points}",
       streak100: "{streak}連続達成！ +{points}",
-      miss: "ミス。あと {n} 回まで。",
+      miss: "ライフ -1。残り {n}",
       wrongKept: "その数字はすでに入っています。",
       mineClear: "地雷 {n}マス 消去！ +{points}",
       mine: "地雷 発動！",
-      heartZero: "ハート ミス 0回復！ +30",
-      heart: "ハート ミス 1回復！",
+      heartZero: "ハート ライフ 0回復！ +30",
+      heart: "ハート ライフ 1回復！",
       hint: "ヒント {n}マス 2択化！ +30",
       shuffleCages: "シャッフル ケージ変更！ +50",
       cellName: "{row}行{col}列",
@@ -187,7 +249,7 @@ const TEXT = {
     difficulty: { easy: "Easy", normal: "Normal", hard: "Hard", veryHard: "Very Hard", extreme: "Extreme" },
     difficultyHelp: { easy: "More givens", normal: "Standard", hard: "Fewer givens", veryHard: "No starting digits", extreme: "Items expected" },
     item: { mine: "Mine", heart: "Heart", hint: "Hint", shuffle: "Shuffle" },
-    itemHelp: { mine: "Clears the 8 surrounding cells", heart: "Removes 1 mistake", hint: "Narrows nearby cells to 2 choices", shuffle: "Changes cage layout" },
+    itemHelp: { mine: "Clears the 8 surrounding cells", heart: "Restores 1 life", hint: "Narrows nearby cells to 2 choices", shuffle: "Changes cage layout" },
     ui: {
       appTitle: "Killer Item Sudoku",
       gameInfo: "Game info",
@@ -201,7 +263,7 @@ const TEXT = {
       noRecordSummary: "No records yet",
       difficultyLabel: "Difficulty",
       time: "Time",
-      mistakes: "Mistakes",
+      mistakes: "Life",
       score: "Score",
       board: "Board",
       numberInput: "Number input",
@@ -213,6 +275,10 @@ const TEXT = {
       generating: "Generating...",
       selectDifficulty: "Choose How to Play",
       itemPicker: "Items",
+      normalPlaySection: "Main Play",
+      specialPlaySection: "Other Modes",
+      chainPlayOpen: "Rogue Run",
+      chainPlayOpenHelp: "Choose abilities for 5 stages",
       firstRunTitle: "Welcome",
       firstRunText: "A twist on Killer Sudoku where mines, hearts, and hints trigger as you solve.",
       itemIntro: "Item intro",
@@ -244,7 +310,7 @@ const TEXT = {
       adventurePrefix: "Adventure\n{label}",
       adventureTitle: "Adventure",
       adventureOpen: "Adventure",
-      adventureOpenHelp: "Special-rule stages",
+      adventureOpenHelp: "Single special-rule stages",
       adventureIntro: "Try boards with special rules that play differently from the main mode.",
       adventurePractice: "Practice",
       adventurePracticeHelp: "No time limit / no records",
@@ -279,6 +345,60 @@ const TEXT = {
       adventureLightningHelp: "Dodge lightning zones / 5-minute limit",
       adventureShiftingCages: "Chaos Cages",
       adventureShiftingCagesHelp: "Shuffle every 5 moves / 4-minute limit",
+      adventureRogueRun: "Rogue Run",
+      adventureRogueRunHelp: "Choose powers across 5 stages",
+      rogueRunStage: "Stage {current}/{total}",
+      rogueRunStageNamed: "{current}/{total} {name}",
+      rogueInitialPower: "Starting Power",
+      rogueAbilityPanel: "Powers",
+      rogueRewardTitle: "Choose a Power",
+      rogueRewardIntro: "Pick one power to carry into the next stage.",
+      rogueRewardIntroStart: "Pick one starting power to begin the run.",
+      rogueNextStage: "Next Stage",
+      rogueRunClear: "Rogue Run Clear!",
+      rogueAbilities: "Powers",
+      rogueNoAbilities: "No powers",
+      rogueStageClear: "Stage {current} Clear",
+      rogueAbilityHeartPlus: "Stronger Hearts",
+      rogueAbilityHeartPlusHelp: "Hearts restore 1 extra life. Stackable",
+      rogueAbilityHeartTime: "Heart Clock",
+      rogueAbilityHeartTimeHelp: "Hearts also restore 10 seconds",
+      rogueAbilityHintSingle: "Certain Hint",
+      rogueAbilityHintSingleHelp: "Hints narrow from 2 choices to 1",
+      rogueAbilityHintExpand: "Wide Hint",
+      rogueAbilityHintExpandHelp: "Hint activation covers a wider area. Stackable",
+      rogueAbilityMineGuard: "Mine Guard",
+      rogueAbilityMineGuardHelp: "Mines fail half the time. Stacking raises the chance",
+      rogueAbilityMineCross: "Cross Shield",
+      rogueAbilityMineCrossHelp: "Mine blasts clear a slightly smaller area",
+      rogueAbilityShuffleEasy: "Clean Shuffle",
+      rogueAbilityShuffleEasyHelp: "Shuffle activation makes cages cleaner. Stackable",
+      rogueMasteryHeartPlus: "Life Spring",
+      rogueMasteryHintExpand: "Far Sight",
+      rogueMasteryMineGuard: "Blast Field",
+      rogueMasteryShuffleEasy: "Orderly Cages",
+      rogueAbilityHeartStock: "Heart Stock",
+      rogueAbilityHeartStockHelp: "Adds 2 heart items to each stage",
+      rogueAbilityHintStock: "Hint Stock",
+      rogueAbilityHintStockHelp: "Adds 2 hint items to each stage",
+      rogueAbilityShuffleStock: "Shuffle Stock",
+      rogueAbilityShuffleStockHelp: "Adds 2 shuffle items to each stage",
+      rogueAbilityLastCellHint: "Last-Cell Hint",
+      rogueAbilityLastCellHintHelp: "Rows, boxes, and cages with 1 cell left become one-choice hints",
+      rogueAbilityCalmGimmicks: "Slower Tempo",
+      rogueAbilityCalmGimmicksHelp: "Enemies and lightning move a little slower",
+      rogueAbilityComboBonus: "Focus",
+      rogueAbilityComboBonusHelp: "Correct answers earn a little more score",
+      rogueStageWarmup: "Warmup",
+      rogueStageMineGrowth: "Growing Mines",
+      rogueStageGuardBomb: "Blocks & Bombs",
+      rogueStageHiddenStorm: "Hidden Storm",
+      rogueStageFinal: "Final Rush",
+      rogueHeartBoost: "Heart restored {n} lives!",
+      rogueHeartTime: "Restored 10 seconds!",
+      rogueMineBlocked: "Mine fizzled!",
+      rogueHintSingle: "Hint confirmed {n} cells! +30",
+      rogueLastCellHint: "Last-cell hint confirmed {n} cells!",
       mineSearchMineHelp: "Game over if stepped on",
       heartTimeHelp: "restores time",
       timeUp: "Time is up.",
@@ -294,11 +414,11 @@ const TEXT = {
       jammerCleared: "Jammer cleared!",
       jammerBlocked: "A jammer is on this cell.",
       chaserBlocked: "The chaser is on this cell.",
-      chaserHit: "Chaser hit! Mistake +1",
+      chaserHit: "Chaser hit! Life -1",
       chaserStunned: "Chaser stunned!",
-      strikerHit: "Striker hit! Mistake +1",
+      strikerHit: "Striker hit! Life -1",
       strikerStunned: "Striker stunned!",
-      lightningHit: "Lightning hit! Mistake +1",
+      lightningHit: "Lightning hit! Life -1",
       mineSearchHit: "You stepped on a mine.",
       mineAdded: "A mine appeared!",
       cageShifted: "Cages changed!",
@@ -310,9 +430,10 @@ const TEXT = {
       bestTimeLabel: "Best Time",
       bestScoreLabel: "Best Score",
       difficultyResult: "Difficulty",
+      mistakeResult: "Mistakes",
       mistakeCount: "{n}",
-      gameOverText: "You made 3 mistakes.",
-      revived: "Revived! Mistakes 0/3",
+      gameOverText: "You ran out of lives.",
+      revived: "Revived! Life 3/3",
       adUnavailable: "Ads are not available in this environment.",
       adPreparing: "Ad is preparing. Please try again shortly.",
       adClosed: "Ad was closed.",
@@ -325,12 +446,12 @@ const TEXT = {
       blockComplete: "Block Complete!",
       streak: "{streak} streak! +{points}",
       streak100: "{streak} streak achieved! +{points}",
-      miss: "Mistake. {n} left.",
+      miss: "Life -1. {n} left.",
       wrongKept: "That number is already entered.",
       mineClear: "Mine cleared {n} cells! +{points}",
       mine: "Mine triggered!",
-      heartZero: "Heart 0 mistakes healed! +30",
-      heart: "Heart 1 mistake healed!",
+      heartZero: "Heart restored 0 life! +30",
+      heart: "Heart restored 1 life!",
       hint: "Hint narrowed {n} cells! +30",
       shuffleCages: "Shuffle changed cages! +50",
       cellName: "R{row}C{col}",
@@ -338,6 +459,61 @@ const TEXT = {
     },
   },
 };
+const ROGUE_RUN_STAGE_COUNT = 5;
+const ROGUE_ABILITY_DEFS = [
+  { id: "heartPlus", titleKey: "rogueAbilityHeartPlus", helpKey: "rogueAbilityHeartPlusHelp", stackable: true },
+  { id: "heartTime", titleKey: "rogueAbilityHeartTime", helpKey: "rogueAbilityHeartTimeHelp" },
+  { id: "hintSingle", titleKey: "rogueAbilityHintSingle", helpKey: "rogueAbilityHintSingleHelp" },
+  { id: "hintExpand", titleKey: "rogueAbilityHintExpand", helpKey: "rogueAbilityHintExpandHelp", stackable: true },
+  { id: "mineGuard", titleKey: "rogueAbilityMineGuard", helpKey: "rogueAbilityMineGuardHelp", stackable: true },
+  { id: "mineCross", titleKey: "rogueAbilityMineCross", helpKey: "rogueAbilityMineCrossHelp" },
+  { id: "shuffleEasy", titleKey: "rogueAbilityShuffleEasy", helpKey: "rogueAbilityShuffleEasyHelp", stackable: true },
+  { id: "heartStock", titleKey: "rogueAbilityHeartStock", helpKey: "rogueAbilityHeartStockHelp", stackable: true },
+  { id: "hintStock", titleKey: "rogueAbilityHintStock", helpKey: "rogueAbilityHintStockHelp", stackable: true },
+  { id: "shuffleStock", titleKey: "rogueAbilityShuffleStock", helpKey: "rogueAbilityShuffleStockHelp", stackable: true },
+  { id: "lastCellHint", titleKey: "rogueAbilityLastCellHint", helpKey: "rogueAbilityLastCellHintHelp" },
+  { id: "calmGimmicks", titleKey: "rogueAbilityCalmGimmicks", helpKey: "rogueAbilityCalmGimmicksHelp" },
+  { id: "comboBonus", titleKey: "rogueAbilityComboBonus", helpKey: "rogueAbilityComboBonusHelp" },
+];
+const ROGUE_STAGE_PLAN = [
+  { nameKey: "rogueStageWarmup", difficulty: "normal", itemCount: 12, initialMines: 4, timeLimitMs: 300000, gimmicks: [] },
+  {
+    nameKey: "rogueStageMineGrowth",
+    difficulty: "hard",
+    itemCount: 13,
+    initialMines: 7,
+    timeLimitMs: 300000,
+    gimmicks: ["growingMines"],
+    rules: { growingMines: { mineIntervalMs: 18000 } },
+  },
+  {
+    nameKey: "rogueStageGuardBomb",
+    difficulty: "hard",
+    itemCount: 13,
+    initialMines: 6,
+    timeLimitMs: 300000,
+    gimmicks: ["patrol", "bomber"],
+    rules: { bomber: { bomberLimit: 5 } },
+  },
+  {
+    nameKey: "rogueStageHiddenStorm",
+    difficulty: "hard",
+    itemCount: 13,
+    initialMines: 7,
+    timeLimitMs: 300000,
+    gimmicks: ["jammer", "sleeper", "lightning"],
+    rules: { jammer: { jammerCount: 3 }, sleeper: { sleeperBlockTurns: 2 }, lightning: { lightningIntervalMs: 3800, lightningWarnMs: 1550, lightningDangerMs: 380 } },
+  },
+  {
+    nameKey: "rogueStageFinal",
+    difficulty: "hard",
+    itemCount: 14,
+    initialMines: 8,
+    timeLimitMs: 300000,
+    gimmicks: ["growingMines", "chaser", "striker", "lightning"],
+    rules: { growingMines: { mineIntervalMs: 22000 }, chaser: { chaserIntervalMs: 2800 }, striker: { strikerIntervalMs: 1100 }, lightning: { lightningIntervalMs: 4200, lightningWarnMs: 1600, lightningDangerMs: 420 } },
+  },
+];
 const ITEM_SELECTION_KEY = "killer-item-sudoku-item-selection-v1";
 const ADVENTURE_PRACTICE_KEY = "killer-item-sudoku-adventure-practice-v1";
 const MIN_MAX_SUM_CACHE = new Map();
@@ -353,6 +529,7 @@ const scoreEl = document.querySelector("#scoreDisplay");
 const scoreStat = scoreEl.closest(".stat");
 const timerEl = document.querySelector("#timerDisplay");
 const difficultyEl = document.querySelector("#difficultyDisplay");
+const statusPanel = document.querySelector(".status-panel");
 const recordButton = document.querySelector("#recordButton");
 const newGameButton = document.querySelector("#newGameButton");
 const difficultyDialog = document.querySelector("#difficultyDialog");
@@ -384,6 +561,25 @@ const resetRetryButton = document.querySelector("#resetRetryButton");
 const confirmResetButton = document.querySelector("#confirmResetButton");
 const loadingOverlay = document.querySelector("#loadingOverlay");
 const comboToast = document.querySelector("#comboToast");
+const rogueAbilityPanel = document.createElement("section");
+rogueAbilityPanel.className = "rogue-ability-panel";
+rogueAbilityPanel.hidden = true;
+statusPanel.insertAdjacentElement("afterend", rogueAbilityPanel);
+const rogueRewardDialog = document.createElement("dialog");
+rogueRewardDialog.className = "modal rogue-reward-dialog";
+rogueRewardDialog.innerHTML = `
+  <form method="dialog" class="modal-body">
+    <h2 id="rogueRewardTitle"></h2>
+    <p id="rogueRewardIntro"></p>
+    <div class="rogue-run-progress" id="rogueRunProgress"></div>
+    <div class="rogue-reward-list" id="rogueRewardList"></div>
+  </form>
+`;
+document.body.append(rogueRewardDialog);
+const rogueRewardTitle = rogueRewardDialog.querySelector("#rogueRewardTitle");
+const rogueRewardIntro = rogueRewardDialog.querySelector("#rogueRewardIntro");
+const rogueRunProgress = rogueRewardDialog.querySelector("#rogueRunProgress");
+const rogueRewardList = rogueRewardDialog.querySelector("#rogueRewardList");
 
 function t(key, values = {}) {
   const source = TEXT[LOCALE].ui[key] ?? TEXT.ja.ui[key] ?? key;
@@ -498,6 +694,12 @@ let undoUsed = false;
 let reviveUsed = false;
 let revivePending = false;
 let showScoreCard = false;
+let rogueRunActive = false;
+let rogueRunStage = 0;
+let rogueRunElapsedMs = 0;
+let rogueRunScoreCarry = 0;
+let rogueRunTotalMistakes = 0;
+let rogueRunAbilities = [];
 let blindIntroActive = false;
 let blindIntroTimerId = null;
 let recordPausedGame = false;
@@ -670,9 +872,8 @@ function addScore(points) {
 }
 
 function correctInputPoints() {
-  if (streak >= 10) return 20;
-  if (streak >= 5) return 15;
-  return 10;
+  const base = streak >= 10 ? 20 : streak >= 5 ? 15 : 10;
+  return hasRogueAbility("comboBonus") ? base + 5 : base;
 }
 
 function highlightNumber() {
@@ -688,6 +889,7 @@ function isGameDialogOpen() {
     recordDialog,
     firstRunDialog,
     dialog,
+    rogueRewardDialog,
     pauseDialog,
     resetDialog,
   ].some((dialogElement) => dialogElement?.open);
@@ -880,8 +1082,9 @@ function orthogonalCells(index) {
 function makeCages(profile = "normal") {
   let best = null;
   let bestSingles = Infinity;
+  const attempts = profile === "compact" ? 24 : 16;
 
-  for (let attempt = 0; attempt < 16; attempt += 1) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
     const candidate = makeCagesOnce(profile);
     const singles = candidate.filter((cage) => cage.cells.length === 1).length;
     const largeCages = candidate.filter((cage) => cage.cells.length > 3).length;
@@ -907,6 +1110,8 @@ function makeCagesOnce(profile = "normal") {
     const roll = random();
     const targetSize = profile === "extreme"
       ? (roll < 0.25 ? 2 : roll < 0.75 ? 3 : roll < 0.97 ? 4 : 5)
+      : profile === "compact" ? (roll < 0.94 ? 2 : 3)
+      : profile === "easy" ? (roll < 0.86 ? 2 : roll < 0.99 ? 3 : 4)
       : (roll < 0.75 ? 2 : roll < 0.96 ? 3 : roll < 0.99 ? 4 : 5);
     const cells = [start];
     unassigned.delete(start);
@@ -1005,7 +1210,7 @@ function patrolBlockedCellsFor(patrolCells = currentPatrolCells()) {
 }
 
 function isJammerMode() {
-  return currentAdventureMode() === "jammer";
+  return currentAdventureMode() === "jammer" || rogueHasGimmick("jammer");
 }
 
 function isJammedCage(cageId) {
@@ -1063,7 +1268,7 @@ function clearSolvedJammerCages(showToast = true) {
 }
 
 function isChaserMode() {
-  return currentAdventureMode() === "chaser";
+  return currentAdventureMode() === "chaser" || rogueHasGimmick("chaser");
 }
 
 function chaserOpenCells() {
@@ -1164,11 +1369,11 @@ function startChaserTimer() {
     chaserStunnedUntil = Date.now() + chaserStunRemainingMs;
     chaserStunRemainingMs = 0;
   }
-  const interval = ADVENTURE_STAGES.chaser.chaserIntervalMs || 2500;
+  const interval = adventureRuleConfig("chaser").chaserIntervalMs || 2500;
   chaserIntervalId = window.setInterval(moveChaser, interval);
 }
 
-function stunChaser(ms = ADVENTURE_STAGES.chaser.chaserStunMs || 5000) {
+function stunChaser(ms = adventureRuleConfig("chaser").chaserStunMs || 5000) {
   if (!isChaserMode() || chaserRetired || currentChaserCell() === null) return false;
   chaserStunnedUntil = Date.now() + ms;
   chaserStunRemainingMs = 0;
@@ -1189,10 +1394,11 @@ function handleChaserHit() {
   if (!isChaserMode() || chaserRetired || over) return;
   mistakes += 1;
   totalMistakes += 1;
+  if (isRogueRunMode() && rogueRunActive) rogueRunTotalMistakes += 1;
   streak = 0;
   flashEffect(selected, "effect-error", 520);
   showComboToast(t("chaserHit"), "combo-toast-lg", { forceFull: true });
-  if (mistakes >= 3) {
+  if (mistakes >= MAX_LIVES) {
     finish(false);
   } else {
     render();
@@ -1219,7 +1425,7 @@ function moveChaser() {
 }
 
 function isStrikerMode() {
-  return currentAdventureMode() === "striker";
+  return currentAdventureMode() === "striker" || rogueHasGimmick("striker");
 }
 
 function randomStrikerSpawn() {
@@ -1291,11 +1497,11 @@ function startStrikerTimer() {
     strikerStunnedUntil = Date.now() + strikerStunRemainingMs;
     strikerStunRemainingMs = 0;
   }
-  const interval = ADVENTURE_STAGES.striker.strikerIntervalMs || 900;
+  const interval = adventureRuleConfig("striker").strikerIntervalMs || 900;
   strikerIntervalId = window.setInterval(moveStriker, interval);
 }
 
-function stunStriker(ms = ADVENTURE_STAGES.striker.strikerStunMs || 3500) {
+function stunStriker(ms = adventureRuleConfig("striker").strikerStunMs || 3500) {
   if (!isStrikerMode() || strikerCell === null) return false;
   strikerStunnedUntil = Date.now() + ms;
   strikerStunRemainingMs = 0;
@@ -1314,11 +1520,12 @@ function handleStrikerHit() {
   if (!isStrikerMode() || over || strikerCell === null) return;
   mistakes += 1;
   totalMistakes += 1;
+  if (isRogueRunMode() && rogueRunActive) rogueRunTotalMistakes += 1;
   streak = 0;
   flashEffect(selected, "effect-error", 520);
   showComboToast(t("strikerHit"), "combo-toast-xl", { forceFull: true });
   spawnStriker(true);
-  if (mistakes >= 3) {
+  if (mistakes >= MAX_LIVES) {
     finish(false);
   } else {
     render();
@@ -1350,7 +1557,7 @@ function moveStriker() {
 }
 
 function isLightningMode() {
-  return currentAdventureMode() === "lightning";
+  return currentAdventureMode() === "lightning" || rogueHasGimmick("lightning");
 }
 
 function lightningTargets() {
@@ -1408,7 +1615,7 @@ function resetLightning() {
   lightningPhase = "idle";
 }
 
-function startLightningTimer(delay = ADVENTURE_STAGES.lightning.lightningIntervalMs || 3200) {
+function startLightningTimer(delay = adventureRuleConfig("lightning").lightningIntervalMs || 3200) {
   clearLightningTimer();
   if (!isLightningMode() || over || paused || blindIntroActive) return;
   lightningTimerId = window.setTimeout(beginLightningWarning, delay);
@@ -1419,8 +1626,9 @@ function beginLightningWarning() {
   lightningCells = chooseLightningCells();
   lightningPhase = "warning";
   render();
-  const warnMs = ADVENTURE_STAGES.lightning.lightningWarnMs || 1400;
-  const dangerMs = Math.min(ADVENTURE_STAGES.lightning.lightningDangerMs || 360, Math.max(0, warnMs - 120));
+  const lightningConfig = adventureRuleConfig("lightning");
+  const warnMs = lightningConfig.lightningWarnMs || 1400;
+  const dangerMs = Math.min(lightningConfig.lightningDangerMs || 360, Math.max(0, warnMs - 120));
   if (dangerMs > 0 && warnMs > dangerMs + 80) {
     lightningTimerId = window.setTimeout(beginLightningDanger, warnMs - dangerMs);
   } else {
@@ -1432,17 +1640,18 @@ function beginLightningDanger() {
   if (!isLightningMode() || over || paused || blindIntroActive) return;
   lightningPhase = "danger";
   render();
-  lightningTimerId = window.setTimeout(strikeLightning, ADVENTURE_STAGES.lightning.lightningDangerMs || 360);
+  lightningTimerId = window.setTimeout(strikeLightning, adventureRuleConfig("lightning").lightningDangerMs || 360);
 }
 
 function handleLightningHit() {
   if (!isLightningMode() || over) return;
   mistakes += 1;
   totalMistakes += 1;
+  if (isRogueRunMode() && rogueRunActive) rogueRunTotalMistakes += 1;
   streak = 0;
   flashEffect(selected, "effect-lightning-hit", 650);
   showComboToast(t("lightningHit"), "combo-toast-lg", { forceFull: true });
-  if (mistakes >= 3) {
+  if (mistakes >= MAX_LIVES) {
     finish(false);
   } else {
     render();
@@ -1462,7 +1671,7 @@ function strikeLightning() {
     lightningPhase = "idle";
     render();
     startLightningTimer();
-  }, ADVENTURE_STAGES.lightning.lightningStrikeMs || 520);
+  }, adventureRuleConfig("lightning").lightningStrikeMs || 520);
 }
 
 function countSolutionsFor(puzzleValues, cageValues, limit = 2, deadline = Infinity) {
@@ -2220,6 +2429,58 @@ function placeBalancedAdventureItems(count) {
   return map;
 }
 
+function countItemsOfType(map, type) {
+  return [...map.values()].filter((itemType) => itemType === type).length;
+}
+
+function ensureItemTypeCount(map, type, targetCount, options = {}) {
+  const preserveTypes = new Set(options.preserveTypes || []);
+  const currentCount = () => countItemsOfType(map, type);
+  shuffle([...map.keys()].filter((cell) => map.get(cell) !== type && !preserveTypes.has(map.get(cell)))).forEach((cell) => {
+    if (currentCount() >= targetCount) return;
+    map.set(cell, type);
+  });
+  shuffle(emptyCells()).forEach((cell) => {
+    if (currentCount() >= targetCount) return;
+    if (!map.has(cell)) map.set(cell, type);
+  });
+}
+
+function addRogueStockItems(map, type, count) {
+  if (count <= 0) return;
+  shuffle(emptyCells()).forEach((cell) => {
+    if (count <= 0) return;
+    if (map.has(cell)) return;
+    map.set(cell, type);
+    count -= 1;
+  });
+}
+
+function rogueShuffleTargetCount() {
+  let count = 0;
+  if (hasRogueAbility("shuffleEasy")) count = Math.max(count, Math.min(2, rogueAbilityCount("shuffleEasy")));
+  count += rogueAbilityCount("shuffleStock") * 2;
+  return count;
+}
+
+function rogueStockTargetCount(type) {
+  if (type === "heart") return rogueAbilityCount("heartStock") * 2;
+  if (type === "hint") return rogueAbilityCount("hintStock") * 2;
+  if (type === "shuffle") return rogueShuffleTargetCount();
+  return 0;
+}
+
+function placeRogueItems(stage) {
+  const plan = currentRogueStagePlan();
+  const map = placeBalancedAdventureItems(plan?.itemCount || stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
+  const targetMines = plan?.initialMines || 0;
+  if (targetMines > 0) ensureItemTypeCount(map, "mine", targetMines);
+  addRogueStockItems(map, "heart", rogueStockTargetCount("heart"));
+  addRogueStockItems(map, "hint", rogueStockTargetCount("hint"));
+  addRogueStockItems(map, "shuffle", rogueStockTargetCount("shuffle"));
+  return map;
+}
+
 function placeMineSearchItems(stage) {
   const candidates = shuffle(emptyCells());
   const map = new Map();
@@ -2249,6 +2510,7 @@ function placeAdventureItems(stage) {
   if (stage.itemMode === "striker") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   if (stage.itemMode === "lightning") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   if (stage.itemMode === "shiftingCages") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
+  if (stage.itemMode === "rogueRun") return placeRogueItems(stage);
   return placeItems(DIFFICULTIES[stage.difficulty].itemCount);
 }
 
@@ -2338,6 +2600,7 @@ function placeIntroItems(itemCount, firstHintCell = null) {
 function renderBoard() {
   const selectedCageId = cellToCage.get(selected);
   const blindMode = currentAdventureMode() === "blind";
+  const showPlayerMarker = Boolean(currentAdventureStage) && !blindIntroActive;
   const matchingNumber = blindMode ? null : highlightNumber();
   const patrolCells = currentPatrolCells();
   const patrolCellSet = new Set(patrolCells);
@@ -2352,7 +2615,7 @@ function renderBoard() {
   const strikerNext = nextStrikerCell();
   const strikerStunned = isStrikerStunned();
   const lightningSet = new Set(isLightningMode() ? lightningCells : []);
-  const bomberLimit = ADVENTURE_STAGES.bomber.bomberLimit || 4;
+  const bomberLimit = adventureRuleConfig("bomber").bomberLimit || 4;
   const bomberDefuseCells = bomberCell !== null && bomberHeat >= bomberLimit - 1
     ? new Set(surroundingCells(bomberCell).filter((cell) => puzzle[cell] === EMPTY && entries[cell] === EMPTY))
     : new Set();
@@ -2380,7 +2643,10 @@ function renderBoard() {
     if (blindMode && !blindIntroActive && value !== EMPTY) cell.classList.add("blind-filled");
     const risk = value !== EMPTY ? mineSearchRisk(index) : 0;
     if (risk > 0) cell.classList.add(`mine-risk-${Math.min(4, risk)}`);
-    if (index === selected) cell.classList.add("selected");
+    if (index === selected) {
+      cell.classList.add("selected");
+      if (showPlayerMarker && remainingLives() === 1) cell.classList.add("player-low-life");
+    }
     if (!blindMode && isRelated(index, selected) && index !== selected) cell.classList.add("related");
     if (!blindMode && cellToCage.get(index) === selectedCageId && index !== selected) cell.classList.add("selected-cage");
     if (!jammed && matchingNumber && value === matchingNumber && index !== selected) cell.classList.add("same-number");
@@ -2511,15 +2777,22 @@ function renderBoard() {
       cell.append(marker);
     }
 
-    cell.addEventListener("click", () => {
-      if (blindIntroActive) return;
-      selected = index;
-      if (checkStrikerCollision()) return;
-      render();
-    });
+    if (showPlayerMarker && index === selected) {
+      const marker = document.createElement("span");
+      marker.className = `player-marker${remainingLives() === 1 ? " player-marker-danger" : ""}`;
+      marker.setAttribute("aria-hidden", "true");
+      cell.append(marker);
+    }
 
     boardEl.append(cell);
   });
+}
+
+function selectBoardCell(index) {
+  if (blindIntroActive || index < 0 || index >= CELL_COUNT) return;
+  selected = index;
+  if (checkStrikerCollision()) return;
+  render();
 }
 
 function renderGridOverlay() {
@@ -2705,6 +2978,11 @@ function renderLegend() {
 function renderDifficultyChoices() {
   difficultyList.innerHTML = "";
 
+  const normalHeading = document.createElement("div");
+  normalHeading.className = "menu-section-title";
+  normalHeading.textContent = t("normalPlaySection");
+  difficultyList.append(normalHeading);
+
   const dailyButton = document.createElement("button");
   dailyButton.className = `daily-toggle${dailyChallenge ? " is-active" : ""}`;
   dailyButton.type = "button";
@@ -2729,12 +3007,31 @@ function renderDifficultyChoices() {
     difficultyList.append(button);
   });
 
+  const specialHeading = document.createElement("div");
+  specialHeading.className = "menu-section-title";
+  specialHeading.textContent = t("specialPlaySection");
+  difficultyList.append(specialHeading);
+
+  const routeGrid = document.createElement("div");
+  routeGrid.className = "play-route-grid";
+
   const adventureButton = document.createElement("button");
-  adventureButton.className = "difficulty-button adventure-button adventure-gateway";
+  adventureButton.className = "difficulty-button adventure-button adventure-gateway play-route-button";
   adventureButton.type = "button";
   adventureButton.innerHTML = `<strong>${t("adventureOpen")}</strong><span>${t("adventureOpenHelp")}</span>`;
   adventureButton.addEventListener("click", showAdventureDialog);
-  difficultyList.append(adventureButton);
+  routeGrid.append(adventureButton);
+
+  const rogueButton = document.createElement("button");
+  rogueButton.className = "difficulty-button rogue-run-gateway play-route-button";
+  rogueButton.type = "button";
+  rogueButton.innerHTML = `<strong>${t("chainPlayOpen")}</strong><span>${t("chainPlayOpenHelp")}</span>`;
+  rogueButton.addEventListener("click", () => {
+    void startRogueRun();
+  });
+  routeGrid.append(rogueButton);
+
+  difficultyList.append(routeGrid);
 
   renderDailyHistory();
 }
@@ -3028,7 +3325,10 @@ function difficultyDisplayLabel() {
     const label = currentAdventurePractice
       ? `${adventureStageLabel(currentAdventureStage)} ${t("adventurePracticeBadge")}`
       : adventureStageLabel(currentAdventureStage);
-    return t("adventurePrefix", { label });
+    const stageLabel = isRogueRunMode() && rogueRunActive
+      ? `${label}\n${t("rogueRunStageNamed", { current: rogueRunStage || 1, total: rogueStageCount(), name: rogueStageName() })}`
+      : label;
+    return t("adventurePrefix", { label: stageLabel });
   }
   const label = difficultyLabel(currentDifficulty);
   return currentDailyKey ? t("dailyPrefix", { label }) : label;
@@ -3050,6 +3350,7 @@ function currentRecordKey() {
 }
 
 function adventureStageLabel(stageKey) {
+  if (stageKey === "rogueRun") return t("adventureRogueRun");
   if (stageKey === "hintRain") return t("adventureHintRain");
   if (stageKey === "heartRush") return t("adventureHeartRush");
   if (stageKey === "growingMines") return t("adventureGrowingMines");
@@ -3071,12 +3372,245 @@ function currentAdventureMode() {
   return ADVENTURE_STAGES[currentAdventureStage]?.itemMode || null;
 }
 
+function isRogueRunMode() {
+  return currentAdventureMode() === "rogueRun";
+}
+
+function rogueStageCount() {
+  return ADVENTURE_STAGES.rogueRun?.stages || ROGUE_STAGE_PLAN.length || ROGUE_RUN_STAGE_COUNT;
+}
+
+function currentRogueStagePlan() {
+  return ROGUE_STAGE_PLAN[Math.max(0, Math.min(ROGUE_STAGE_PLAN.length - 1, rogueRunStage - 1))] || ROGUE_STAGE_PLAN[0];
+}
+
+function rogueStageName() {
+  const plan = currentRogueStagePlan();
+  return plan ? t(plan.nameKey) : "";
+}
+
+function rogueHasGimmick(name) {
+  return isRogueRunMode() && Boolean(currentRogueStagePlan()?.gimmicks?.includes(name));
+}
+
+function adventureRuleConfig(name) {
+  const base = ADVENTURE_STAGES[name] || {};
+  const plan = isRogueRunMode() ? currentRogueStagePlan() : null;
+  const override = plan?.rules?.[name] || {};
+  const config = { ...base, ...override };
+  if (hasRogueAbility("calmGimmicks")) {
+    if (name === "growingMines" && config.mineIntervalMs) config.mineIntervalMs = Math.round(config.mineIntervalMs * 1.25);
+    if (name === "chaser" && config.chaserIntervalMs) config.chaserIntervalMs = Math.round(config.chaserIntervalMs * 1.2);
+    if (name === "striker" && config.strikerIntervalMs) config.strikerIntervalMs = Math.round(config.strikerIntervalMs * 1.2);
+    if (name === "lightning" && config.lightningIntervalMs) config.lightningIntervalMs = Math.round(config.lightningIntervalMs * 1.2);
+    if (name === "bomber" && config.bomberLimit) config.bomberLimit += 1;
+  }
+  return config;
+}
+
+function hasRogueAbility(id) {
+  return isRogueRunMode() && rogueRunAbilities.includes(id);
+}
+
+function rogueAbilityCount(id) {
+  return isRogueRunMode() ? rogueRunAbilities.filter((abilityId) => abilityId === id).length : 0;
+}
+
+function rogueAbilityDef(id) {
+  return ROGUE_ABILITY_DEFS.find((ability) => ability.id === id) || null;
+}
+
+function rogueAbilityLabel(id) {
+  const ability = rogueAbilityDef(id);
+  return ability ? t(ability.titleKey) : id;
+}
+
+function rogueAbilityHelp(id) {
+  const ability = rogueAbilityDef(id);
+  return ability ? t(ability.helpKey) : "";
+}
+
+function rogueAbilityMasteryLabel(id, count) {
+  if (count < 2) return null;
+  if (id === "heartPlus") return t("rogueMasteryHeartPlus");
+  if (id === "hintExpand") return t("rogueMasteryHintExpand");
+  if (id === "mineGuard") return t("rogueMasteryMineGuard");
+  if (id === "shuffleEasy") return t("rogueMasteryShuffleEasy");
+  return null;
+}
+
+function rogueAbilitySummaryLabels() {
+  const counts = new Map();
+  rogueRunAbilities.forEach((id) => counts.set(id, (counts.get(id) || 0) + 1));
+  return [...counts.entries()].flatMap(([id, count]) => {
+    const label = count > 1 ? `${rogueAbilityLabel(id)} x${count}` : rogueAbilityLabel(id);
+    const mastery = rogueAbilityMasteryLabel(id, count);
+    return mastery ? [label, mastery] : [label];
+  });
+}
+
+function rogueRewardLabel(ability) {
+  const nextCount = rogueAbilityCount(ability.id) + 1;
+  return ability.stackable && nextCount > 1 ? `${t(ability.titleKey)} x${nextCount}` : t(ability.titleKey);
+}
+
+function resetRogueRunState() {
+  rogueRunActive = false;
+  rogueRunStage = 0;
+  rogueRunElapsedMs = 0;
+  rogueRunScoreCarry = 0;
+  rogueRunTotalMistakes = 0;
+  rogueRunAbilities = [];
+}
+
+function chooseRogueRewards() {
+  const remaining = ROGUE_ABILITY_DEFS.filter((ability) => ability.stackable || !rogueRunAbilities.includes(ability.id));
+  return shuffle(remaining.length ? remaining : ROGUE_ABILITY_DEFS).slice(0, 3);
+}
+
+function showRogueRewardDialog() {
+  const isInitial = !currentAdventureStage && rogueRunActive && rogueRunStage === 1 && rogueRunAbilities.length === 0;
+  const rewards = chooseRogueRewards();
+  rogueRewardTitle.textContent = t("rogueRewardTitle");
+  rogueRewardIntro.textContent = isInitial ? t("rogueRewardIntroStart") : t("rogueRewardIntro");
+  rogueRunProgress.textContent = isInitial
+    ? t("rogueInitialPower")
+    : t("rogueStageClear", { current: rogueRunStage });
+  rogueRewardList.innerHTML = "";
+  rewards.forEach((ability) => {
+    const button = document.createElement("button");
+    button.className = "rogue-reward-option";
+    button.type = "button";
+    button.innerHTML = `<strong>${rogueRewardLabel(ability)}</strong><span>${t(ability.helpKey)}</span>`;
+    button.addEventListener("click", () => {
+      if (ability.stackable || !rogueRunAbilities.includes(ability.id)) rogueRunAbilities.push(ability.id);
+      if (rogueRewardDialog.open) rogueRewardDialog.close();
+      if (!isInitial) rogueRunStage += 1;
+      void newGame(ADVENTURE_STAGES.rogueRun.difficulty, { adventureStage: "rogueRun", rogueContinue: true });
+    });
+    rogueRewardList.append(button);
+  });
+  rogueRewardDialog.showModal();
+}
+
+async function startRogueRun() {
+  resetRogueRunState();
+  rogueRunActive = true;
+  rogueRunStage = 1;
+  dailyChallenge = false;
+  currentAdventureStage = null;
+  currentAdventurePractice = false;
+  if (difficultyDialog.open) difficultyDialog.close();
+  if (adventureDialog.open) adventureDialog.close();
+  showRogueRewardDialog();
+}
+
+function rogueResultAbilityHtml() {
+  const labels = rogueAbilitySummaryLabels().map((label) => `<span>${label}</span>`).join("");
+  return `<div class="rogue-result-abilities"><strong>${t("rogueAbilities")}</strong><div>${labels || `<span>${t("rogueNoAbilities")}</span>`}</div></div>`;
+}
+
+function rewindElapsed(ms) {
+  const current = currentElapsedMs();
+  elapsedMs = Math.max(0, current - ms);
+  startTime = Date.now();
+}
+
+function rogueHintTargetCells(index) {
+  const targets = new Set(surroundingCells(index));
+  const expandCount = rogueAbilityCount("hintExpand");
+  const row = rowOf(index);
+  const col = colOf(index);
+  if (expandCount === 1) {
+    [
+      [row - 2, col],
+      [row + 2, col],
+      [row, col - 2],
+      [row, col + 2],
+    ].forEach(([nextRow, nextCol]) => {
+      if (nextRow >= 0 && nextRow < SIZE && nextCol >= 0 && nextCol < SIZE) {
+        targets.add(indexOf(nextRow, nextCol));
+      }
+    });
+  } else if (expandCount >= 2) {
+    const radius = Math.min(3, expandCount);
+    for (let nextRow = row - radius; nextRow <= row + radius; nextRow += 1) {
+      for (let nextCol = col - radius; nextCol <= col + radius; nextCol += 1) {
+        if (nextRow === row && nextCol === col) continue;
+        if (nextRow >= 0 && nextRow < SIZE && nextCol >= 0 && nextCol < SIZE) {
+          targets.add(indexOf(nextRow, nextCol));
+        }
+      }
+    }
+  }
+  return [...targets].filter((cell) => entries[cell] === EMPTY);
+}
+
+function renderRogueAbilityPanel() {
+  if (!isRogueRunMode() || !rogueRunActive) {
+    rogueAbilityPanel.hidden = true;
+    rogueAbilityPanel.innerHTML = "";
+    return;
+  }
+  rogueAbilityPanel.hidden = false;
+  const chips = rogueRunAbilities.length
+    ? rogueAbilitySummaryLabels().map((label) => `<span>${label}</span>`).join("")
+    : `<span>${t("rogueNoAbilities")}</span>`;
+  rogueAbilityPanel.innerHTML = `<strong>${t("rogueAbilityPanel")}</strong><div>${chips}</div>`;
+}
+
+function rogueLastHintUnits() {
+  const units = [];
+  for (let row = 0; row < SIZE; row += 1) {
+    units.push(Array.from({ length: SIZE }, (_, col) => indexOf(row, col)));
+  }
+  for (let col = 0; col < SIZE; col += 1) {
+    units.push(Array.from({ length: SIZE }, (_, row) => indexOf(row, col)));
+  }
+  for (let boxRow = 0; boxRow < SIZE; boxRow += BOX) {
+    for (let boxCol = 0; boxCol < SIZE; boxCol += BOX) {
+      const boxCells = [];
+      for (let row = boxRow; row < boxRow + BOX; row += 1) {
+        for (let col = boxCol; col < boxCol + BOX; col += 1) {
+          boxCells.push(indexOf(row, col));
+        }
+      }
+      units.push(boxCells);
+    }
+  }
+  cages.filter((cage) => cage.cells.length >= 2).forEach((cage) => units.push([...cage.cells]));
+  return units;
+}
+
+function applyRogueLastCellHints() {
+  if (!hasRogueAbility("lastCellHint")) return 0;
+  const targets = new Set();
+  rogueLastHintUnits().forEach((cells) => {
+    const empty = cells.filter((cell) => entries[cell] === EMPTY);
+    if (empty.length === 1 && !hinted.has(empty[0])) targets.add(empty[0]);
+  });
+  targets.forEach((cell) => {
+    hinted.set(cell, [solution[cell]]);
+    notes.delete(cell);
+    mineNotes.delete(cell);
+    flashEffect(cell, "effect-hint-target", 700);
+  });
+  if (targets.size > 0) {
+    showComboToast(t("rogueLastCellHint", { n: targets.size }), comboLevel(targets.size));
+  }
+  return targets.size;
+}
+
 function isHeartbeatMode() {
   return currentAdventureMode() === "heartbeat";
 }
 
 function isShiftingCagesMode() {
   return currentAdventureMode() === "shiftingCages";
+}
+
+function isGrowingMinesMode() {
+  return currentAdventureMode() === "growingMines" || rogueHasGimmick("growingMines");
 }
 
 function isMineSearchMode() {
@@ -3100,15 +3634,15 @@ function isMineSearchCleared() {
 }
 
 function isPatrolMode() {
-  return currentAdventureMode() === "patrol";
+  return currentAdventureMode() === "patrol" || rogueHasGimmick("patrol");
 }
 
 function isBomberMode() {
-  return currentAdventureMode() === "bomber";
+  return currentAdventureMode() === "bomber" || rogueHasGimmick("bomber");
 }
 
 function isSleeperMode() {
-  return currentAdventureMode() === "sleeper";
+  return currentAdventureMode() === "sleeper" || rogueHasGimmick("sleeper");
 }
 
 function makePatrolRoute() {
@@ -3349,7 +3883,7 @@ function updateBomberAfterInput(inputCell) {
   }
 
   bomberHeat += 1;
-  const limit = ADVENTURE_STAGES.bomber.bomberLimit || 4;
+  const limit = adventureRuleConfig("bomber").bomberLimit || 4;
   if (bomberHeat >= limit) {
     const cleared = clearAroundEnemy(bomberCell);
     bomberHeat = 0;
@@ -3370,14 +3904,14 @@ function setupSleeper() {
   sleeperBlockTurns = 0;
   if (!isSleeperMode()) return;
   const candidates = shuffle(emptyCells());
-  sleeperCells = candidates.slice(0, SLEEPER_COUNT);
+  sleeperCells = candidates.slice(0, adventureRuleConfig("sleeper").sleeperCount || SLEEPER_COUNT);
 }
 
 function setupJammer() {
   jammerCageIds = new Set();
   jammerCellsByCage = new Map();
   if (!isJammerMode()) return;
-  const targetCount = ADVENTURE_STAGES.jammer.jammerCount || 4;
+  const targetCount = adventureRuleConfig("jammer").jammerCount || 4;
   const candidates = shuffle(cages.filter((cage) => (
     cage.cells.length >= 2 && cage.cells.filter((cell) => puzzle[cell] === EMPTY).length >= 2
   )));
@@ -3457,7 +3991,7 @@ function updateSleeperAfterInput(inputCell) {
   const awakenedSleepers = sleeperCells.filter((cell) => surroundingCells(cell).includes(inputCell));
   if (awakenedSleepers.length) {
     const sleeperSet = new Set(sleeperCells);
-    const blockTurns = ADVENTURE_STAGES.sleeper.sleeperBlockTurns || 3;
+    const blockTurns = adventureRuleConfig("sleeper").sleeperBlockTurns || 3;
     awakenedSleepers.forEach((sleeper) => {
       surroundingCells(sleeper).forEach((cell) => {
         if (puzzle[cell] === EMPTY && entries[cell] === EMPTY && !sleeperSet.has(cell)) {
@@ -3502,16 +4036,21 @@ function isRelated(a, b) {
   );
 }
 
+function remainingLives() {
+  return Math.max(0, MAX_LIVES - mistakes);
+}
+
 function render() {
   renderBoard();
   renderPad();
   renderLegend();
   renderToolRow();
+  renderRogueAbilityPanel();
   difficultyEl.textContent = difficultyDisplayLabel();
   difficultyEl.classList.toggle("is-daily", Boolean(currentDailyKey));
   difficultyEl.classList.toggle("is-adventure", Boolean(currentAdventureStage));
   difficultyEl.classList.toggle("is-long", currentDifficulty === "extreme");
-  mistakeEl.textContent = `${mistakes} / 3`;
+  mistakeEl.textContent = `${remainingLives()} / ${MAX_LIVES}`;
   const statLabels = document.querySelectorAll(".status-panel .stat span");
   const canToggleScoreCard = shouldShowRemainingCells();
   const showingRemaining = canToggleScoreCard && !showScoreCard;
@@ -3521,6 +4060,8 @@ function render() {
   scoreStat.setAttribute("role", canToggleScoreCard ? "button" : "presentation");
   scoreStat.tabIndex = canToggleScoreCard ? 0 : -1;
   timerEl.textContent = timerDisplayText();
+  rogueRewardTitle.textContent = t("rogueRewardTitle");
+  rogueRewardIntro.textContent = t("rogueRewardIntro");
 }
 
 function setReviveButtonVisible(visible) {
@@ -3866,6 +4407,7 @@ function enterNumber(number) {
   const bomberEffect = updateBomberAfterInput(selected);
   updateSleeperAfterInput(selected);
   clearSolvedJammerCages(true);
+  applyRogueLastCellHints();
   if (!blockWasComplete && isCompletedBlock(selected)) {
     flashCompletedBlock(selected);
     showComboToast(t("blockComplete"));
@@ -3896,9 +4438,10 @@ function enterNumber(number) {
 function handleMistake() {
   mistakes += 1;
   totalMistakes += 1;
+  if (isRogueRunMode() && rogueRunActive) rogueRunTotalMistakes += 1;
   streak = 0;
-  message(t("miss", { n: Math.max(0, 3 - mistakes) }));
-  if (mistakes >= 3) {
+  message(t("miss", { n: remainingLives() }));
+  if (mistakes >= MAX_LIVES) {
     finish(false);
   } else {
     render();
@@ -3913,8 +4456,14 @@ function triggerItem(index) {
   flashEffect(index, `effect-${item}`, 700);
 
   if (item === "mine") {
-    const blastCells = surroundingCells(index);
-    const cleared = surroundingCells(index).filter((cell) => (
+    const mineGuardCount = rogueAbilityCount("mineGuard");
+    const mineGuardChance = mineGuardCount >= 3 ? 1 : 1 - Math.pow(0.5, mineGuardCount);
+    if (mineGuardCount > 0 && random() < mineGuardChance) {
+      showComboToast(t("rogueMineBlocked"), "combo-toast-lg");
+      return result;
+    }
+    const blastCells = hasRogueAbility("mineCross") ? orthogonalCells(index) : surroundingCells(index);
+    const cleared = blastCells.filter((cell) => (
       entries[cell] !== EMPTY && (isSameBlock(cell, index) || !isCompletedBlock(cell))
     ));
     cleared.forEach((cell) => {
@@ -3941,31 +4490,39 @@ function triggerItem(index) {
   }
 
   if (item === "heart") {
-    const recovered = mistakes > 0 ? 1 : 0;
-    mistakes = Math.max(0, mistakes - 1);
+    const recoveryAmount = 1 + rogueAbilityCount("heartPlus");
+    const recovered = Math.min(mistakes, recoveryAmount);
+    mistakes = Math.max(0, mistakes - recoveryAmount);
     if (recovered === 0) addScore(30);
     boostHeartDeadline();
-    message(`Heart recovered ${recovered} mistakes.`);
-    showComboToast(recovered === 0 ? t("heartZero") : t("heart"));
+    if (hasRogueAbility("heartTime") && adventureTimeLimitMs) {
+      rewindElapsed(10000);
+      showComboToast(t("rogueHeartTime"), "combo-toast-normal");
+    }
+    message(`Heart restored ${recovered} life.`);
+    showComboToast(recovered === 0 ? t("heartZero") : recovered > 1 ? t("rogueHeartBoost", { n: recovered }) : t("heart"));
   }
 
   if (item === "hint") {
-    const targets = surroundingCells(index).filter((cell) => entries[cell] === EMPTY);
+    const targets = rogueHintTargetCells(index);
     targets.forEach((cell) => {
       const correct = solution[cell];
       const wrong = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9].filter((n) => n !== correct))[0];
-      hinted.set(cell, shuffle([correct, wrong]));
+      hinted.set(cell, hasRogueAbility("hintSingle") ? [correct] : shuffle([correct, wrong]));
       notes.delete(cell);
       mineNotes.delete(cell);
       flashEffect(cell, "effect-hint-target", 700);
     });
     message(`Hint narrowed ${targets.length} cells.`);
     addScore(30);
-    showComboToast(t("hint", { n: targets.length }), comboLevel(targets.length));
+    showComboToast(hasRogueAbility("hintSingle")
+      ? t("rogueHintSingle", { n: targets.length })
+      : t("hint", { n: targets.length }), comboLevel(targets.length));
   }
 
   if (item === "shuffle") {
-    changeCageLayout("normal");
+    const shuffleEasyCount = rogueAbilityCount("shuffleEasy");
+    changeCageLayout(shuffleEasyCount >= 2 ? "compact" : shuffleEasyCount >= 1 ? "easy" : "normal");
     addScore(50);
     showComboToast(t("shuffleCages"), "combo-toast-lg");
   }
@@ -4030,7 +4587,7 @@ function changeCageLayout(profile = "normal") {
 }
 
 function addAdventureMine() {
-  if (over || paused || currentAdventureStage !== "growingMines") return;
+  if (over || paused || !isGrowingMinesMode()) return;
   const candidates = shuffle(emptyCells()).filter((cell) => entries[cell] === EMPTY);
   if (!candidates.length) return;
   const cell = candidates[0];
@@ -4215,36 +4772,55 @@ function finish(won, options = {}) {
   paused = false;
   stopTimer();
   const recordKey = currentRecordKey();
-  const noMistakeClear = won && totalMistakes === 0;
+  const resultElapsedMs = isRogueRunMode() ? rogueRunElapsedMs + elapsedMs : elapsedMs;
+  if (won && isRogueRunMode() && rogueRunActive && rogueRunStage < rogueStageCount()) {
+    rogueRunElapsedMs += elapsedMs;
+    rogueRunScoreCarry = score;
+    render();
+    trackWebEvent("rogue_stage_clear", {
+      record_key: recordKey,
+      stage: rogueRunStage,
+      time_seconds: Math.floor(rogueRunElapsedMs / 1000),
+      score,
+      abilities: rogueRunAbilities.join(","),
+    });
+    showRogueRewardDialog();
+    return;
+  }
+  const mistakeResultCount = isRogueRunMode() ? rogueRunTotalMistakes : totalMistakes;
+  const noMistakeClear = won && mistakeResultCount === 0;
   const canSaveRecord = won && !currentAdventurePractice;
   if (canSaveRecord && noMistakeClear) saveNoMistakeRecord(recordKey);
-  const timeRecord = canSaveRecord ? saveBestTime(recordKey, elapsedMs) : null;
+  const timeRecord = canSaveRecord ? saveBestTime(recordKey, resultElapsedMs) : null;
   const scoreRecord = canSaveRecord ? saveBestScore(recordKey, score) : null;
   if (won && !currentAdventurePractice) renderDifficultyChoices();
   render();
   trackWebEvent(won ? "game_clear" : "game_over", {
     record_key: recordKey,
-    time_seconds: Math.floor(elapsedMs / 1000),
+    time_seconds: Math.floor(resultElapsedMs / 1000),
     score,
-    mistakes: totalMistakes,
+    mistakes: mistakeResultCount,
     no_mistake: noMistakeClear,
+    rogue_abilities: isRogueRunMode() ? rogueRunAbilities.join(",") : "",
     reason: options.reason || "",
   });
-  dialogTitle.textContent = won ? t("clear") : t("gameOver");
+  dialogTitle.textContent = won && isRogueRunMode() ? t("rogueRunClear") : won ? t("clear") : t("gameOver");
   if (won) {
     const badges = currentAdventurePractice
       ? `<span class="best-badge subtle-badge">${t("adventurePracticeBadge")}</span>`
       : `${timeRecord.isBest ? `<span class="best-badge">${t("bestTime")}</span>` : ""}${scoreRecord.isBest ? `<span class="best-badge">${t("bestScore")}</span>` : ""}${noMistakeClear ? `<span class="best-badge subtle-badge">${t("noMistakeClear")}</span>` : ""}`;
+    const rogueSummary = isRogueRunMode() ? rogueResultAbilityHtml() : "";
     const bestStats = currentAdventurePractice
       ? ""
       : `<div><dt>${t("bestTimeLabel")}</dt><dd>${formatTime(timeRecord.best)}</dd></div><div><dt>${t("bestScoreLabel")}</dt><dd>${scoreRecord.best}</dd></div>`;
-    dialogText.innerHTML = `${badges}<dl class="result-grid"><div><dt>${t("time")}</dt><dd>${formatTime(elapsedMs)}</dd></div><div><dt>${t("score")}</dt><dd>${score}</dd></div>${bestStats}<div><dt>${t("mistakes")}</dt><dd>${t("mistakeCount", { n: mistakes })}</dd></div><div><dt>${t("difficultyResult")}</dt><dd>${difficultyResultLabel()}</dd></div></dl>`;
+    dialogText.innerHTML = `${badges}${rogueSummary}<dl class="result-grid"><div><dt>${t("time")}</dt><dd>${formatTime(resultElapsedMs)}</dd></div><div><dt>${t("score")}</dt><dd>${score}</dd></div>${bestStats}<div><dt>${t("mistakeResult")}</dt><dd>${t("mistakeCount", { n: isRogueRunMode() ? rogueRunTotalMistakes : mistakes })}</dd></div><div><dt>${t("difficultyResult")}</dt><dd>${difficultyResultLabel()}</dd></div></dl>`;
   } else {
     const reason = options.reason === "timeUp"
       ? t("timeUp")
       : options.reason === "heartbeatUp" ? t("heartbeatUp")
       : options.reason === "mineSearchHit" ? t("mineSearchHit") : t("gameOverText");
-    dialogText.innerHTML = `<span>${reason}</span><dl class="result-grid"><div><dt>${t("time")}</dt><dd>${formatTime(elapsedMs)}</dd></div><div><dt>${t("score")}</dt><dd>${score}</dd></div></dl>`;
+    const rogueSummary = isRogueRunMode() ? rogueResultAbilityHtml() : "";
+    dialogText.innerHTML = `<span>${reason}</span>${rogueSummary}<dl class="result-grid"><div><dt>${t("time")}</dt><dd>${formatTime(resultElapsedMs)}</dd></div><div><dt>${t("score")}</dt><dd>${score}</dd></div></dl>`;
   }
   setReviveButtonVisible(!won && !reviveUsed && options.reason !== "timeUp" && options.reason !== "heartbeatUp" && options.reason !== "mineSearchHit");
   retryButton.hidden = false;
@@ -4291,6 +4867,7 @@ function showDifficultyDialog() {
   if (difficultyDialog.open) return;
   if (adventureDialog.open) adventureDialog.close();
   if (firstRunDialog.open) firstRunDialog.close();
+  if (rogueRewardDialog.open) rogueRewardDialog.close();
   renderDifficultyChoices();
   difficultyDialog.showModal();
 }
@@ -4299,12 +4876,15 @@ function showAdventureDialog() {
   if (adventureDialog.open) return;
   if (difficultyDialog.open) difficultyDialog.close();
   if (firstRunDialog.open) firstRunDialog.close();
+  if (rogueRewardDialog.open) rogueRewardDialog.close();
   renderAdventureChoices();
   adventureDialog.showModal();
 }
 
 function showCurrentModeSelectionDialog() {
-  if (currentAdventureStage) {
+  if (isRogueRunMode()) {
+    showDifficultyDialog();
+  } else if (currentAdventureStage) {
     showAdventureDialog();
   } else {
     showDifficultyDialog();
@@ -4358,6 +4938,7 @@ function pauseGame(showDialog = true) {
     showDialog &&
     !pauseDialog.open &&
     !dialog.open &&
+    !rogueRewardDialog.open &&
     !firstRunDialog.open &&
     !difficultyDialog.open &&
     !resetDialog.open
@@ -4519,6 +5100,11 @@ function retryGame() {
 async function startAdventureStage(stageKey) {
   const stage = ADVENTURE_STAGES[stageKey];
   if (!stage) return;
+  if (stageKey === "rogueRun") {
+    await startRogueRun();
+    return;
+  }
+  resetRogueRunState();
   dailyChallenge = false;
   await newGame(stage.difficulty, { adventureStage: stageKey });
 }
@@ -4526,15 +5112,20 @@ async function startAdventureStage(stageKey) {
 async function newGame(difficultyKey = currentDifficulty, options = {}) {
   if (generating) return;
   generating = true;
-  currentDifficulty = difficultyKey;
+  const requestedAdventureStage = options.adventureStage || null;
+  const continuingRogueRun = requestedAdventureStage === "rogueRun" && options.rogueContinue && rogueRunActive;
+  const roguePlan = continuingRogueRun ? currentRogueStagePlan() : null;
+  currentDifficulty = roguePlan?.difficulty || difficultyKey;
   const config = DIFFICULTIES[currentDifficulty];
-  const adventureStage = options.adventureStage ? ADVENTURE_STAGES[options.adventureStage] : null;
+  const adventureStage = requestedAdventureStage ? ADVENTURE_STAGES[requestedAdventureStage] : null;
+  if (!continuingRogueRun) resetRogueRunState();
   const nextDailyKey = dailyChallenge && !options.adventureStage ? todayKey() : null;
   const seed = nextDailyKey ? hashSeed(`daily-v1:${nextDailyKey}:${difficultyKey}:${itemSeedKey()}`) : null;
   const previousRandomSource = randomSource;
   if (dialog.open) dialog.close();
   if (pauseDialog.open) pauseDialog.close();
   if (resetDialog.open) resetDialog.close();
+  if (rogueRewardDialog.open) rogueRewardDialog.close();
   if (firstRunDialog.open) firstRunDialog.close();
   if (difficultyDialog.open) difficultyDialog.close();
   if (adventureDialog.open) adventureDialog.close();
@@ -4545,10 +5136,10 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
   setLoading(true);
   await nextPaint();
   try {
-    currentAdventureStage = options.adventureStage || null;
+    currentAdventureStage = requestedAdventureStage;
     currentAdventurePractice = Boolean(currentAdventureStage && adventurePracticeEnabled);
-    adventureTimeLimitMs = currentAdventurePractice ? null : adventureStage?.timeLimitMs || null;
-    adventureMineIntervalMs = adventureStage?.mineIntervalMs || null;
+    adventureTimeLimitMs = currentAdventurePractice ? null : roguePlan?.timeLimitMs || adventureStage?.timeLimitMs || null;
+    adventureMineIntervalMs = isGrowingMinesMode() ? adventureRuleConfig("growingMines").mineIntervalMs || adventureStage?.mineIntervalMs || null : null;
     heartDeadlineMs = currentAdventurePractice ? null : adventureStage?.heartDeadlineMs || null;
     heartDeadlineElapsedMs = 0;
     heartDeadlineStartMs = 0;
@@ -4624,7 +5215,7 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     }
     mistakes = 0;
     totalMistakes = 0;
-    score = 0;
+    score = continuingRogueRun ? rogueRunScoreCarry : 0;
     elapsedMs = 0;
     startTime = 0;
     showScoreCard = false;
@@ -4689,6 +5280,20 @@ legendEntries.forEach((entry) => {
     if (entry.dataset.item === "mine") toggleMineNote();
   });
 });
+boardEl.addEventListener("pointerdown", (event) => {
+  if (event.pointerType === "mouse" && event.button !== 0) return;
+  const cell = event.target.closest(".cell");
+  if (!cell || !boardEl.contains(cell)) return;
+  event.preventDefault();
+  selectBoardCell(Number(cell.dataset.index));
+});
+boardEl.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const cell = event.target.closest(".cell");
+  if (!cell || !boardEl.contains(cell)) return;
+  event.preventDefault();
+  selectBoardCell(Number(cell.dataset.index));
+});
 undoButton.addEventListener("click", undoMove);
 noteButton.addEventListener("click", toggleNoteMode);
 eraseButton.addEventListener("click", eraseSelected);
@@ -4697,6 +5302,9 @@ retryButton.addEventListener("click", retryGame);
 dialogButton.addEventListener("click", () => {
   if (dialog.open) dialog.close();
   showCurrentModeSelectionDialog();
+});
+rogueRewardDialog.addEventListener("cancel", (event) => {
+  event.preventDefault();
 });
 resumeButton.addEventListener("click", resumeGame);
 adventureBackButton.addEventListener("click", backToDifficultyDialog);

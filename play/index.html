@@ -49,7 +49,7 @@
       window.gtag("js", new Date());
       window.gtag("config", "G-G1C3TXLT1N");
     </script>
-    <link rel="stylesheet" href="./styles.css?v=20260615-lightning-contrast">
+    <link rel="stylesheet" href="./styles.css?v=20260616-life">
     <style>
       .web-demo-note {
         margin: 0 0 10px;
@@ -107,8 +107,8 @@
           <strong id="timerDisplay">00:00</strong>
         </div>
         <div class="stat">
-          <span>ミス</span>
-          <strong id="mistakeCount">0 / 3</strong>
+          <span>ライフ</span>
+          <strong id="mistakeCount">3 / 3</strong>
         </div>
         <div class="stat">
           <span>スコア</span>
@@ -137,7 +137,7 @@
         </div>
         <div class="legend-entry" data-item="heart">
           <span class="legend-icon legend-heart" aria-hidden="true"></span>
-          <span><strong>ハート</strong>ミスを1つ減らす</span>
+          <span><strong>ハート</strong>ライフを1つ回復する</span>
         </div>
         <div class="legend-entry" data-item="hint">
           <span class="legend-icon legend-hint" aria-hidden="true"></span>
@@ -168,7 +168,7 @@
             <p class="picker-title">登場アイテム</p>
           </div>
           <div class="difficulty-list" id="difficultyList"></div>
-          <button class="record-button menu-record-button" id="recordButton" type="button">記録を見る</button>
+          <button class="record-button menu-record-button" id="recordButton" type="button">記録</button>
           <div class="daily-history" id="dailyHistory"></div>
         </div>
       </dialog>
@@ -176,12 +176,12 @@
       <dialog class="modal" id="adventureDialog">
         <div class="modal-body">
           <h2>アドベンチャー</h2>
-          <p class="adventure-intro">いつもと違うルールで、少し変わった盤面に挑戦できます。</p>
+          <p class="adventure-intro">特殊ルールのステージに挑戦できます。</p>
           <label class="adventure-practice-toggle" id="adventurePracticeToggle">
             <input id="adventurePracticeInput" type="checkbox">
             <span>
-              <strong>練習</strong>
-              <small>時間制限なし / 記録なし</small>
+              <strong>Practice</strong>
+              <small>No time limit</small>
             </span>
           </label>
           <div class="difficulty-list" id="adventureList"></div>
@@ -256,6 +256,6 @@
     <script>
       window.KILLER_WEB_DEMO_NO_ADS = true;
     </script>
-    <script src="./app.js?v=20260615-lightning-contrast"></script>
+    <script src="./app.js?v=20260616-life"></script>
   </body>
 </html>
