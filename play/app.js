@@ -646,6 +646,7 @@ let selectedItemTypes = readSelectedItemTypes();
 let generating = false;
 let activeNumber = null;
 let toastId = null;
+let toastSoftenId = null;
 let toastQueue = [];
 let toastActive = false;
 let randomSource = Math.random;
@@ -923,11 +924,23 @@ function isCenterBoxCell(index) {
 
 function clearComboToasts() {
   window.clearTimeout(toastId);
+  window.clearTimeout(toastSoftenId);
   toastId = null;
+  toastSoftenId = null;
   toastQueue = [];
   toastActive = false;
-  comboToast.classList.remove("is-active", "combo-toast-normal", "combo-toast-lg", "combo-toast-xl", "combo-toast-century", "combo-toast-muted");
+  comboToast.classList.remove("is-active", "combo-toast-normal", "combo-toast-lg", "combo-toast-xl", "combo-toast-century", "combo-toast-muted", "is-softened");
   comboToast.innerHTML = "";
+}
+
+function softenComboToast() {
+  if (!toastActive || !comboToast.classList.contains("is-active")) return;
+  window.clearTimeout(toastSoftenId);
+  comboToast.classList.add("is-softened");
+  toastSoftenId = window.setTimeout(() => {
+    comboToast.classList.remove("is-softened");
+    toastSoftenId = null;
+  }, 620);
 }
 
 function renderNextComboToast() {
@@ -936,17 +949,21 @@ function renderNextComboToast() {
   if (!next) return;
 
   toastActive = true;
-  comboToast.classList.remove("combo-toast-normal", "combo-toast-lg", "combo-toast-xl", "combo-toast-century", "combo-toast-muted");
+  window.clearTimeout(toastSoftenId);
+  toastSoftenId = null;
+  comboToast.classList.remove("combo-toast-normal", "combo-toast-lg", "combo-toast-xl", "combo-toast-century", "combo-toast-muted", "is-softened");
   const label = document.createElement("span");
   label.textContent = next.text;
   comboToast.innerHTML = "";
   comboToast.append(label);
   comboToast.classList.add("is-active", next.level);
-  comboToast.classList.toggle("combo-toast-muted", next.muted);
+  comboToast.classList.toggle("combo-toast-muted", next.muted || isCenterBoxCell(selected));
 
   const duration = next.level === "combo-toast-century" ? 1250 : next.level === "combo-toast-xl" ? 950 : 760;
   toastId = window.setTimeout(() => {
-    comboToast.classList.remove("is-active", "combo-toast-normal", "combo-toast-lg", "combo-toast-xl", "combo-toast-century", "combo-toast-muted");
+    window.clearTimeout(toastSoftenId);
+    toastSoftenId = null;
+    comboToast.classList.remove("is-active", "combo-toast-normal", "combo-toast-lg", "combo-toast-xl", "combo-toast-century", "combo-toast-muted", "is-softened");
     comboToast.innerHTML = "";
     toastActive = false;
     toastId = window.setTimeout(renderNextComboToast, 70);
@@ -5296,7 +5313,9 @@ boardEl.addEventListener("pointerdown", (event) => {
   const cell = event.target.closest(".cell");
   if (!cell || !boardEl.contains(cell)) return;
   event.preventDefault();
-  selectBoardCell(Number(cell.dataset.index));
+  const index = Number(cell.dataset.index);
+  if (isCenterBoxCell(index)) softenComboToast();
+  selectBoardCell(index);
 });
 boardEl.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" && event.key !== " ") return;
