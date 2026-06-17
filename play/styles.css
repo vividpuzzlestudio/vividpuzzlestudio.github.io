@@ -2423,6 +2423,90 @@ h1.title-ja {
   font-weight: 900;
 }
 
+.rogue-next-preview {
+  margin: 0 0 12px;
+  padding: 11px;
+  border: 2px solid rgba(32, 37, 43, .88);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 253, 250, .94), rgba(239, 246, 241, .92)),
+    #fffdfa;
+  box-shadow: 0 7px 18px rgba(32, 37, 43, .09);
+}
+
+.rogue-next-preview-head {
+  display: grid;
+  gap: 2px;
+  padding: 0 0 9px;
+  border-bottom: 1px solid rgba(32, 37, 43, .12);
+}
+
+.rogue-next-preview-head span,
+.rogue-next-preview-head small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.rogue-next-preview-head span {
+  color: #7a58b5;
+  text-transform: uppercase;
+}
+
+.rogue-next-preview-head strong {
+  color: #20252b;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.18;
+}
+
+.rogue-next-gimmicks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding-top: 9px;
+}
+
+.rogue-gimmick-chip {
+  display: grid;
+  gap: 1px;
+  max-width: 100%;
+  padding: 6px 9px;
+  border: 1px solid rgba(122, 88, 181, .28);
+  border-radius: 8px;
+  background: rgba(122, 88, 181, .08);
+  color: #4f3388;
+}
+
+.rogue-gimmick-chip strong,
+.rogue-gimmick-chip small {
+  overflow-wrap: anywhere;
+}
+
+.rogue-gimmick-chip strong {
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.rogue-gimmick-chip small {
+  color: #67527f;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.rogue-gimmick-chip.is-quiet {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  color: var(--muted);
+  background: rgba(32, 37, 43, .05);
+  border-color: rgba(32, 37, 43, .12);
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .rogue-reward-list {
   display: grid;
   gap: 9px;
