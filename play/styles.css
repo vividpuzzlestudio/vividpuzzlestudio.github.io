@@ -265,6 +265,32 @@ h1.title-ja {
   container-type: inline-size;
 }
 
+.board-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 22;
+  border-radius: 6px;
+  background-color: #aaadaa;
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 calc(100% / 3 - 3px), rgba(32, 37, 43, .82) calc(100% / 3 - 3px) calc(100% / 3)),
+    repeating-linear-gradient(90deg, transparent 0 calc(100% / 3 - 3px), rgba(32, 37, 43, .82) calc(100% / 3 - 3px) calc(100% / 3)),
+    repeating-linear-gradient(0deg, transparent 0 calc(100% / 9 - 1px), rgba(32, 37, 43, .18) calc(100% / 9 - 1px) calc(100% / 9)),
+    repeating-linear-gradient(90deg, transparent 0 calc(100% / 9 - 1px), rgba(32, 37, 43, .18) calc(100% / 9 - 1px) calc(100% / 9));
+  box-shadow: inset 0 0 0 3px rgba(32, 37, 43, .88);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .16s ease;
+}
+
+.app-shell.board-obscured .board-wrap::after {
+  opacity: 1;
+}
+
+.app-shell.board-obscured .board {
+  visibility: hidden;
+}
+
 .board {
   position: relative;
   width: 100%;

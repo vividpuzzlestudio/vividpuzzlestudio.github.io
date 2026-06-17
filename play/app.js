@@ -519,6 +519,7 @@ const ADVENTURE_PRACTICE_KEY = "killer-item-sudoku-adventure-practice-v1";
 const MIN_MAX_SUM_CACHE = new Map();
 
 const boardEl = document.querySelector("#board");
+const appShell = document.querySelector(".app-shell");
 const padEl = document.querySelector("#numberPad");
 const undoButton = document.querySelector("#undoButton");
 const noteButton = document.querySelector("#noteButton");
@@ -894,6 +895,22 @@ function isGameDialogOpen() {
     pauseDialog,
     resetDialog,
   ].some((dialogElement) => dialogElement?.open);
+}
+
+function shouldObscureBoard() {
+  if (over || generating) return false;
+  return Boolean(
+    pauseDialog.open ||
+    resetDialog.open ||
+    recordDialog.open ||
+    rogueRewardDialog.open ||
+    (difficultyDialog.open && paused) ||
+    (adventureDialog.open && paused)
+  );
+}
+
+function syncBoardObscured() {
+  appShell?.classList.toggle("board-obscured", shouldObscureBoard());
 }
 
 function moveSelectionBy(rowDelta, colDelta) {
@@ -4898,6 +4915,7 @@ function showDifficultyDialog() {
   if (rogueRewardDialog.open) rogueRewardDialog.close();
   renderDifficultyChoices();
   difficultyDialog.showModal();
+  syncBoardObscured();
 }
 
 function showAdventureDialog() {
@@ -4907,6 +4925,7 @@ function showAdventureDialog() {
   if (rogueRewardDialog.open) rogueRewardDialog.close();
   renderAdventureChoices();
   adventureDialog.showModal();
+  syncBoardObscured();
 }
 
 function showCurrentModeSelectionDialog() {
@@ -4929,10 +4948,12 @@ function showRecordDialog() {
   if (recordPausedGame) pauseGame(false);
   renderRecords();
   recordDialog.showModal();
+  syncBoardObscured();
 }
 
 function closeRecordDialog() {
   if (recordDialog.open) recordDialog.close();
+  syncBoardObscured();
 }
 
 function backToDifficultyDialog() {
@@ -4973,6 +4994,7 @@ function pauseGame(showDialog = true) {
   ) {
     pauseDialog.showModal();
   }
+  syncBoardObscured();
 }
 
 function resumeGame() {
@@ -4981,6 +5003,7 @@ function resumeGame() {
   if (pauseDialog.open) pauseDialog.close();
   resumeTimer();
   render();
+  syncBoardObscured();
 }
 
 function showResetDialog() {
@@ -4991,11 +5014,13 @@ function showResetDialog() {
   pauseGame(false);
   resetRetryButton.hidden = Boolean(currentAdventureStage);
   if (!resetDialog.open) resetDialog.showModal();
+  syncBoardObscured();
 }
 
 function cancelReset() {
   if (resetDialog.open) resetDialog.close();
   resumeGame();
+  syncBoardObscured();
 }
 
 function confirmReset() {
@@ -5006,6 +5031,7 @@ function confirmReset() {
   stopTimer();
   render();
   showCurrentModeSelectionDialog();
+  syncBoardObscured();
 }
 
 function cloneMap(map) {
@@ -5335,6 +5361,9 @@ dialogButton.addEventListener("click", () => {
 });
 rogueRewardDialog.addEventListener("cancel", (event) => {
   event.preventDefault();
+});
+[difficultyDialog, adventureDialog, recordDialog, firstRunDialog, dialog, pauseDialog, resetDialog, rogueRewardDialog].forEach((dialogElement) => {
+  dialogElement.addEventListener("close", syncBoardObscured);
 });
 resumeButton.addEventListener("click", resumeGame);
 adventureBackButton.addEventListener("click", backToDifficultyDialog);
