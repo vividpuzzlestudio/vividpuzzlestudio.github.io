@@ -3797,18 +3797,26 @@ function defeatPatrolGuardians(targetCells) {
   return defeated;
 }
 
-function canBomberOccupy(index) {
+function bomberAvoidCells() {
+  if (!isPatrolMode() || !patrolRoute.length || !patrolSteps.length) return new Set();
+  const patrolCells = currentPatrolCells();
+  return new Set([...patrolCells, ...patrolBlockedCellsFor(patrolCells)]);
+}
+
+function canBomberOccupy(index, avoidCells = bomberAvoidCells()) {
   if (!isBomberMode() || puzzle[index] !== EMPTY || entries[index] !== EMPTY) return false;
+  if (avoidCells.has(index)) return false;
   const openCells = entries.filter((value, cell) => puzzle[cell] === EMPTY && value === EMPTY).length;
   return openCells > 1;
 }
 
 function normalizeBomberStep() {
   if (!isBomberMode() || !bomberRoute.length) return null;
+  const avoidCells = bomberAvoidCells();
   for (let count = 0; count < bomberRoute.length; count += 1) {
     const step = ((bomberStep % bomberRoute.length) + bomberRoute.length) % bomberRoute.length;
     const cell = bomberRoute[step];
-    if (canBomberOccupy(cell)) {
+    if (canBomberOccupy(cell, avoidCells)) {
       bomberStep = step;
       return cell;
     }
@@ -3823,9 +3831,10 @@ function currentBomberCell() {
 
 function nextBomberCell() {
   if (!isBomberMode() || !bomberRoute.length) return null;
+  const avoidCells = bomberAvoidCells();
   for (let count = 1; count < bomberRoute.length; count += 1) {
     const cell = bomberRoute[(bomberStep + count) % bomberRoute.length];
-    if (canBomberOccupy(cell)) return cell;
+    if (canBomberOccupy(cell, avoidCells)) return cell;
   }
   return null;
 }
@@ -3836,7 +3845,8 @@ function setupBomber() {
   bomberHeat = 0;
   if (!isBomberMode()) return;
   bomberRoute = makePatrolRoute();
-  const firstOpen = bomberRoute.findIndex((cell) => canBomberOccupy(cell));
+  const avoidCells = bomberAvoidCells();
+  const firstOpen = bomberRoute.findIndex((cell) => canBomberOccupy(cell, avoidCells));
   bomberStep = firstOpen >= 0 ? firstOpen : 0;
 }
 
@@ -3844,10 +3854,11 @@ function advanceBomber() {
   if (!isBomberMode() || !bomberRoute.length) return false;
   const before = currentBomberCell();
   if (before === null) return false;
+  const avoidCells = bomberAvoidCells();
   for (let count = 0; count < bomberRoute.length; count += 1) {
     bomberStep = (bomberStep + 1) % bomberRoute.length;
     const cell = bomberRoute[bomberStep];
-    if (canBomberOccupy(cell)) {
+    if (canBomberOccupy(cell, avoidCells)) {
       if (cell !== before) flashEffect(cell, "effect-bomber", 500);
       return cell !== before;
     }
