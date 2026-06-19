@@ -170,7 +170,8 @@ h1.title-ja {
 }
 
 .rogue-ability-panel strong,
-.rogue-ability-panel span {
+.rogue-ability-panel span,
+.rogue-ability-chip {
   white-space: nowrap;
 }
 
@@ -192,14 +193,36 @@ h1.title-ja {
   display: none;
 }
 
-.rogue-ability-panel span {
+.rogue-ability-panel span,
+.rogue-ability-chip {
   flex: 0 0 auto;
   padding: 3px 7px;
+  border: 0;
   border-radius: 999px;
   background: rgba(32, 37, 43, .88);
   color: #fffdfa;
   font-size: 10px;
   font-weight: 900;
+}
+
+.rogue-ability-chip:active {
+  transform: translateY(1px);
+}
+
+.rogue-ability-detail {
+  grid-column: 1 / -1;
+  margin: -1px 0 0;
+  padding: 5px 7px;
+  border-radius: 7px;
+  background: rgba(255, 253, 250, .72);
+  color: #4f4a43;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.rogue-ability-detail[hidden] {
+  display: none;
 }
 
 .stat {

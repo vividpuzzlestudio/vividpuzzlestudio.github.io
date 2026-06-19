@@ -164,6 +164,7 @@ const TEXT = {
       rogueMasteryHintExpand: "千里眼",
       rogueMasteryMineGuard: "防爆フィールド",
       rogueMasteryShuffleEasy: "整然ケージ",
+      rogueMasteryHelp: "{ability}を重ねて強化中",
       rogueAbilityHeartStock: "ハート補給",
       rogueAbilityHeartStockHelp: "各ステージにハートを2個追加",
       rogueAbilityHintStock: "ヒント補給",
@@ -389,6 +390,7 @@ const TEXT = {
       rogueMasteryHintExpand: "Far Sight",
       rogueMasteryMineGuard: "Blast Field",
       rogueMasteryShuffleEasy: "Orderly Cages",
+      rogueMasteryHelp: "{ability} is strengthened by stacking",
       rogueAbilityHeartStock: "Heart Stock",
       rogueAbilityHeartStockHelp: "Adds 2 heart items to each stage",
       rogueAbilityHintStock: "Hint Stock",
@@ -3473,9 +3475,22 @@ function currentRogueStagePlan() {
   return rogueStagePlanAt(rogueRunStage);
 }
 
+function rogueGimmickTitle(gimmick) {
+  const info = ROGUE_GIMMICK_PREVIEW[gimmick] || {};
+  return info.titleKey ? t(info.titleKey) : gimmick;
+}
+
+function rogueStagePlanName(plan = currentRogueStagePlan()) {
+  if (!plan?.gimmicks?.length) return plan?.nameKey ? t(plan.nameKey) : "";
+  return [...rogueGimmickCounts(plan.gimmicks)].map(([gimmick, count]) => {
+    const countLabel = count > 1 ? ` x${count}` : "";
+    return `${rogueGimmickTitle(gimmick)}${countLabel}`;
+  }).join(" + ");
+}
+
 function rogueStageName() {
   const plan = currentRogueStagePlan();
-  return plan ? t(plan.nameKey) : "";
+  return rogueStagePlanName(plan);
 }
 
 function rogueHasGimmick(name) {
@@ -3549,6 +3564,18 @@ function rogueAbilitySummaryLabels() {
   });
 }
 
+function rogueAbilitySummaryEntries() {
+  const counts = new Map();
+  rogueRunAbilities.forEach((id) => counts.set(id, (counts.get(id) || 0) + 1));
+  return [...counts.entries()].flatMap(([id, count]) => {
+    const label = count > 1 ? `${rogueAbilityLabel(id)} x${count}` : rogueAbilityLabel(id);
+    const entries = [{ id, label, help: rogueAbilityHelp(id) }];
+    const mastery = rogueAbilityMasteryLabel(id, count);
+    if (mastery) entries.push({ id, label: mastery, help: t("rogueMasteryHelp", { ability: rogueAbilityLabel(id) }) });
+    return entries;
+  });
+}
+
 function rogueRewardLabel(ability) {
   const nextCount = rogueAbilityCount(ability.id) + 1;
   return ability.stackable && nextCount > 1 ? `${t(ability.titleKey)} x${nextCount}` : t(ability.titleKey);
@@ -3618,7 +3645,7 @@ function rogueGimmickPreviewHtml(plan) {
   if (!plan?.gimmicks?.length) return `<span class="rogue-gimmick-chip is-quiet">${t("roguePreviewNoGimmick")}</span>`;
   return [...rogueGimmickCounts(plan.gimmicks)].map(([gimmick, count]) => {
     const info = ROGUE_GIMMICK_PREVIEW[gimmick] || {};
-    const title = info.titleKey ? t(info.titleKey) : gimmick;
+    const title = rogueGimmickTitle(gimmick);
     const help = info.helpKey ? t(info.helpKey) : "";
     const countLabel = count > 1 ? ` x${count}` : "";
     return `<span class="rogue-gimmick-chip"><strong>${title}${countLabel}</strong><small>${help}</small></span>`;
@@ -3628,7 +3655,7 @@ function rogueGimmickPreviewHtml(plan) {
 function renderRogueNextPreview(isInitial) {
   const nextStage = rogueNextStageNumber(isInitial);
   const plan = rogueStagePlanAt(nextStage);
-  const stageTitle = t("rogueRunStageNamed", { current: nextStage, total: rogueStageCount(), name: t(plan.nameKey) });
+  const stageTitle = t("rogueRunStageNamed", { current: nextStage, total: rogueStageCount(), name: rogueStagePlanName(plan) });
   const meta = t("rogueNextPreviewMeta", {
     difficulty: difficultyLabel(plan.difficulty),
     time: formatTime(plan.timeLimitMs),
@@ -3746,10 +3773,11 @@ function renderRogueAbilityPanel() {
     return;
   }
   rogueAbilityPanel.hidden = false;
-  const chips = rogueRunAbilities.length
-    ? rogueAbilitySummaryLabels().map((label) => `<span>${label}</span>`).join("")
+  const entries = rogueAbilitySummaryEntries();
+  const chips = entries.length
+    ? entries.map((entry) => `<button class="rogue-ability-chip" type="button" data-ability-id="${entry.id}" data-ability-help="${entry.help}" aria-label="${entry.label} ${entry.help}">${entry.label}</button>`).join("")
     : `<span>${t("rogueNoAbilities")}</span>`;
-  rogueAbilityPanel.innerHTML = `<strong>${t("rogueAbilityPanel")}</strong><div>${chips}</div>`;
+  rogueAbilityPanel.innerHTML = `<strong>${t("rogueAbilityPanel")}</strong><div>${chips}</div><p class="rogue-ability-detail" hidden></p>`;
 }
 
 function rogueLastHintUnits() {
@@ -5524,6 +5552,14 @@ dialogButton.addEventListener("click", () => {
 });
 rogueRewardDialog.addEventListener("cancel", (event) => {
   event.preventDefault();
+});
+rogueAbilityPanel.addEventListener("click", (event) => {
+  const chip = event.target.closest(".rogue-ability-chip");
+  if (!chip) return;
+  const detail = rogueAbilityPanel.querySelector(".rogue-ability-detail");
+  if (!detail) return;
+  detail.textContent = chip.dataset.abilityHelp || "";
+  detail.hidden = false;
 });
 [difficultyDialog, adventureDialog, recordDialog, firstRunDialog, dialog, pauseDialog, resetDialog, rogueRewardDialog].forEach((dialogElement) => {
   dialogElement.addEventListener("close", syncBoardObscured);
