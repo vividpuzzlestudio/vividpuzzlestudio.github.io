@@ -123,9 +123,9 @@ const TEXT = {
       adventureBomber: "ボマー",
       adventureBomberHelp: "放置すると爆発 / 5分制限",
       adventureCageEater: "ケージイーター",
-      adventureCageEaterHelp: "放置すると隣接ケージを融合 / 5分制限",
+      adventureCageEaterHelp: "放置するとケージ融合",
       adventureNumberClimb: "ナンバークライム",
-      adventureNumberClimbHelp: "小さい数字から埋めろ / 5分制限",
+      adventureNumberClimbHelp: "小さい数字から埋めろ",
       numberClimbNext: "次は {n} 以上",
       numberClimbReset: "{n} でリセット",
       numberClimbBlocked: "今は {n} 以上の数字だけ入力できます。",
@@ -153,6 +153,10 @@ const TEXT = {
       rogueRewardIntroStart: "最初の能力を1つ選んでローグランを始めます。",
       rogueNextStage: "次のステージへ",
       rogueRunClear: "ローグラン制覇！",
+      rogueBossName: "スコア・コア",
+      rogueBossStage: "BOSS {name}",
+      rogueBossPreview: "スコア獲得でHPを削る",
+      rogueBossHp: "HP {current} / {max}",
       rogueAbilities: "獲得能力",
       rogueNoAbilities: "能力なし",
       rogueStageClear: "ステージ {current} クリア",
@@ -199,6 +203,9 @@ const TEXT = {
       roguePreviewGrowingMines: "時間経過で地雷追加",
       roguePreviewPatrol: "移動する封鎖",
       roguePreviewBomber: "放置で爆発",
+      roguePreviewCageEater: "放置でケージ融合",
+      roguePreviewNumberClimb: "小さい数字から入力",
+      roguePreviewShiftingCages: "一定手数でケージ変化",
       roguePreviewJammer: "ケージ情報を隠す",
       roguePreviewSleeper: "起床で周囲封鎖",
       roguePreviewLightning: "落雷エリアが発生",
@@ -361,9 +368,9 @@ const TEXT = {
       adventureBomber: "Bomber",
       adventureBomberHelp: "Explodes if ignored / 5-minute limit",
       adventureCageEater: "Cage Eater",
-      adventureCageEaterHelp: "Merges an adjacent cage if ignored / 5-minute limit",
+      adventureCageEaterHelp: "Merges cages if ignored",
       adventureNumberClimb: "Number Climb",
-      adventureNumberClimbHelp: "Fill the smaller numbers first / 5-minute limit",
+      adventureNumberClimbHelp: "Fill smaller numbers first",
       numberClimbNext: "Next: {n} or higher",
       numberClimbReset: "Reset at {n}",
       numberClimbBlocked: "Only numbers {n} or higher can be entered now.",
@@ -391,6 +398,10 @@ const TEXT = {
       rogueRewardIntroStart: "Pick one starting power to begin the run.",
       rogueNextStage: "Next Stage",
       rogueRunClear: "Rogue Run Clear!",
+      rogueBossName: "Score Core",
+      rogueBossStage: "BOSS {name}",
+      rogueBossPreview: "Earn score to drain its HP",
+      rogueBossHp: "HP {current} / {max}",
       rogueAbilities: "Powers",
       rogueNoAbilities: "No powers",
       rogueStageClear: "Stage {current} Clear",
@@ -437,6 +448,9 @@ const TEXT = {
       roguePreviewGrowingMines: "Mines appear over time",
       roguePreviewPatrol: "Moving blockers",
       roguePreviewBomber: "Explodes if ignored",
+      roguePreviewCageEater: "Merges cages if ignored",
+      roguePreviewNumberClimb: "Enter smaller numbers first",
+      roguePreviewShiftingCages: "Cages change after several moves",
       roguePreviewJammer: "Hides cage info",
       roguePreviewSleeper: "Blocks nearby cells",
       roguePreviewLightning: "Lightning zones appear",
@@ -512,6 +526,7 @@ const TEXT = {
   },
 };
 const ROGUE_RUN_STAGE_COUNT = 5;
+const ROGUE_BOSS_HP = 750;
 const ROGUE_ABILITY_DEFS = [
   { id: "heartPlus", titleKey: "rogueAbilityHeartPlus", helpKey: "rogueAbilityHeartPlusHelp", stackable: true },
   { id: "heartTime", titleKey: "rogueAbilityHeartTime", helpKey: "rogueAbilityHeartTimeHelp" },
@@ -566,9 +581,10 @@ const ROGUE_STAGE_PLAN = [
     rules: { growingMines: { mineIntervalMs: 22000 }, chaser: { chaserIntervalMs: 2800 }, striker: { strikerIntervalMs: 1100 }, lightning: { lightningIntervalMs: 4200, lightningWarnMs: 1600, lightningDangerMs: 420 } },
   },
 ];
-const ROGUE_GIMMICK_POOL = ["growingMines", "patrol", "bomber", "sleeper", "jammer", "lightning", "chaser", "striker"];
+const ROGUE_GIMMICK_POOL = ["growingMines", "patrol", "bomber", "cageEater", "numberClimb", "shiftingCages", "sleeper", "jammer", "lightning", "chaser", "striker"];
+const ROGUE_STACKABLE_ENEMY_GIMMICKS = new Set(["patrol", "bomber", "cageEater", "sleeper", "jammer", "chaser", "striker"]);
 const ROGUE_RANDOM_STAGE_SHAPES = [
-  { nameKey: "rogueStageWarmup", difficulty: "normal", itemCount: 12, initialMines: 4, timeLimitMs: 300000, picks: 1, pool: ["growingMines", "patrol", "sleeper", "jammer"] },
+  { nameKey: "rogueStageWarmup", difficulty: "normal", itemCount: 12, initialMines: 4, timeLimitMs: 300000, picks: 1, pool: ["growingMines", "patrol", "cageEater", "numberClimb", "shiftingCages", "sleeper", "jammer"] },
   { nameKey: "rogueStageMineGrowth", difficulty: "hard", itemCount: 13, initialMines: 6, timeLimitMs: 300000, picks: 2 },
   { nameKey: "rogueStageGuardBomb", difficulty: "hard", itemCount: 13, initialMines: 6, timeLimitMs: 300000, picks: 2 },
   { nameKey: "rogueStageHiddenStorm", difficulty: "hard", itemCount: 13, initialMines: 7, timeLimitMs: 300000, picks: 3 },
@@ -578,6 +594,9 @@ const ROGUE_GIMMICK_PREVIEW = {
   growingMines: { titleKey: "adventureGrowingMines", helpKey: "roguePreviewGrowingMines" },
   patrol: { titleKey: "adventurePatrol", helpKey: "roguePreviewPatrol" },
   bomber: { titleKey: "adventureBomber", helpKey: "roguePreviewBomber" },
+  cageEater: { titleKey: "adventureCageEater", helpKey: "roguePreviewCageEater" },
+  numberClimb: { titleKey: "adventureNumberClimb", helpKey: "roguePreviewNumberClimb" },
+  shiftingCages: { titleKey: "adventureShiftingCages", helpKey: "roguePreviewShiftingCages" },
   jammer: { titleKey: "adventureJammer", helpKey: "roguePreviewJammer" },
   sleeper: { titleKey: "adventureSleeper", helpKey: "roguePreviewSleeper" },
   lightning: { titleKey: "adventureLightning", helpKey: "roguePreviewLightning" },
@@ -640,6 +659,10 @@ const numberClimbPanel = document.createElement("section");
 numberClimbPanel.className = "number-climb-panel";
 numberClimbPanel.hidden = true;
 rogueAbilityPanel.insertAdjacentElement("afterend", numberClimbPanel);
+const rogueBossPanel = document.createElement("section");
+rogueBossPanel.className = "rogue-boss-panel";
+rogueBossPanel.hidden = true;
+numberClimbPanel.insertAdjacentElement("afterend", rogueBossPanel);
 const rogueRewardDialog = document.createElement("dialog");
 rogueRewardDialog.className = "modal rogue-reward-dialog";
 rogueRewardDialog.innerHTML = `
@@ -777,6 +800,7 @@ let rogueRunActive = false;
 let rogueRunStage = 0;
 let rogueRunElapsedMs = 0;
 let rogueRunScoreCarry = 0;
+let rogueBossScoreStart = 0;
 let rogueRunTotalMistakes = 0;
 let rogueRunAbilities = [];
 let rogueRunPlans = [];
@@ -1425,14 +1449,34 @@ function currentChaserCell() {
   return chaserCell;
 }
 
+function chaserJumpCells(current) {
+  const row = rowOf(current);
+  const col = colOf(current);
+  const directions = [
+    { row: -1, col: 0 },
+    { row: 1, col: 0 },
+    { row: 0, col: -1 },
+    { row: 0, col: 1 },
+  ];
+  return directions.flatMap((direction) => {
+    let nextRow = row + direction.row;
+    let nextCol = col + direction.col;
+    while (nextRow >= 0 && nextRow < SIZE && nextCol >= 0 && nextCol < SIZE) {
+      const cell = indexOf(nextRow, nextCol);
+      if (puzzle[cell] === EMPTY && entries[cell] === EMPTY) return [cell];
+      nextRow += direction.row;
+      nextCol += direction.col;
+    }
+    return [];
+  });
+}
+
 function nextChaserCell() {
   const current = currentChaserCell();
   if (current === null || isChaserStunned()) return null;
-  const candidates = orthogonalCells(current).filter((cell) => (
-    puzzle[cell] === EMPTY && entries[cell] === EMPTY
-  ));
-  const pool = candidates.length ? candidates : chaserOpenCells();
-  if (!pool.length) return null;
+  const candidates = chaserJumpCells(current);
+  if (!candidates.length) return null;
+  const pool = candidates;
   const movable = pool.length > 1 && chaserPreviousCell !== null
     ? pool.filter((cell) => cell !== chaserPreviousCell)
     : pool;
@@ -3068,7 +3112,7 @@ function renderPad() {
     const noted = notes.get(selected)?.has(number);
     const button = document.createElement("button");
     button.className = solved ? "number-button number-button-complete" : "number-button";
-    const climbLocked = isNumberClimbMode() && !noteMode && number < numberClimbMinimum;
+    const climbLocked = isNumberClimbMode() && !noteMode && number < numberClimbMinimumAllowed();
     if (climbLocked) button.classList.add("number-button-climb-locked");
     if (noted) button.classList.add(noteMode ? "number-button-noted" : "number-button-candidate");
     button.type = "button";
@@ -3455,7 +3499,7 @@ function difficultyDisplayLabel() {
       ? `${adventureStageLabel(currentAdventureStage)} ${t("adventurePracticeBadge")}`
       : adventureStageLabel(currentAdventureStage);
     const stageLabel = isRogueRunMode() && rogueRunActive
-      ? `${label}\n${t("rogueRunStageNamed", { current: rogueRunStage || 1, total: rogueStageCount(), name: rogueStageName() })}`
+      ? `${label}\n${rogueStageDisplayLabel(rogueRunStage || 1)}`
       : label;
     return t("adventurePrefix", { label: stageLabel });
   }
@@ -3511,6 +3555,10 @@ function rogueStageCount() {
   return rogueRunPlans.length || ADVENTURE_STAGES.rogueRun?.stages || ROGUE_STAGE_PLAN.length || ROGUE_RUN_STAGE_COUNT;
 }
 
+function rogueRegularStageCount() {
+  return rogueRunPlans.filter((plan) => !plan.boss).length || ROGUE_RUN_STAGE_COUNT;
+}
+
 function rogueStagePlanAt(stageNumber) {
   const plans = rogueRunPlans.length ? rogueRunPlans : ROGUE_STAGE_PLAN;
   return plans[Math.max(0, Math.min(plans.length - 1, stageNumber - 1))] || plans[0] || ROGUE_STAGE_PLAN[0];
@@ -3526,11 +3574,45 @@ function rogueGimmickTitle(gimmick) {
 }
 
 function rogueStagePlanName(plan = currentRogueStagePlan()) {
+  if (plan?.boss) return t("rogueBossName");
   if (!plan?.gimmicks?.length) return plan?.nameKey ? t(plan.nameKey) : "";
   return [...rogueGimmickCounts(plan.gimmicks)].map(([gimmick, count]) => {
     const countLabel = count > 1 ? ` x${count}` : "";
     return `${rogueGimmickTitle(gimmick)}${countLabel}`;
   }).join(" + ");
+}
+
+function rogueStageDisplayLabel(stageNumber, plan = rogueStagePlanAt(stageNumber)) {
+  if (plan?.boss) return t("rogueBossStage", { name: rogueStagePlanName(plan) });
+  return t("rogueRunStageNamed", {
+    current: stageNumber,
+    total: rogueRegularStageCount(),
+    name: rogueStagePlanName(plan),
+  });
+}
+
+function isRogueBossStage() {
+  return isRogueRunMode() && Boolean(currentRogueStagePlan()?.boss);
+}
+
+function rogueBossRemainingHp() {
+  if (!isRogueBossStage()) return 0;
+  const maxHp = currentRogueStagePlan()?.bossHp || ROGUE_BOSS_HP;
+  return Math.max(0, maxHp - Math.max(0, score - rogueBossScoreStart));
+}
+
+function renderRogueBossPanel() {
+  const visible = isRogueBossStage() && !over;
+  rogueBossPanel.hidden = !visible;
+  if (!visible) return;
+  const maxHp = currentRogueStagePlan()?.bossHp || ROGUE_BOSS_HP;
+  const hp = rogueBossRemainingHp();
+  const ratio = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
+  rogueBossPanel.innerHTML = `
+    <div><strong>BOSS</strong><span>${t("rogueBossName")}</span></div>
+    <small>${t("rogueBossHp", { current: hp, max: maxHp })}</small>
+    <div class="rogue-boss-track"><i style="width:${ratio * 100}%"></i></div>
+  `;
 }
 
 function rogueStageName() {
@@ -3564,6 +3646,9 @@ function adventureRuleConfig(name) {
     if (name === "striker" && config.strikerIntervalMs) config.strikerIntervalMs = Math.round(config.strikerIntervalMs * 1.2);
     if (name === "lightning" && config.lightningIntervalMs) config.lightningIntervalMs = Math.round(config.lightningIntervalMs * 1.2);
     if (name === "bomber" && config.bomberLimit) config.bomberLimit += 1;
+    if (name === "cageEater" && config.eaterLimit) config.eaterLimit += 1;
+    if (name === "numberClimb" && config.climbStep) config.climbStep = Math.max(1, config.climbStep - 1);
+    if (name === "shiftingCages" && config.cageShiftEvery) config.cageShiftEvery += 1;
   }
   return config;
 }
@@ -3628,7 +3713,16 @@ function rogueRewardLabel(ability) {
 
 function randomRogueGimmicks(shape) {
   const pool = shape.pool || ROGUE_GIMMICK_POOL;
-  return Array.from({ length: shape.picks }, () => pool[Math.floor(random() * pool.length)]);
+  const gimmicks = [];
+  for (let index = 0; index < shape.picks; index += 1) {
+    const candidates = pool.filter((gimmick) => !(
+      (gimmicks.includes(gimmick) && !ROGUE_STACKABLE_ENEMY_GIMMICKS.has(gimmick)) ||
+      (gimmick === "bomber" && gimmicks.includes("cageEater")) ||
+      (gimmick === "cageEater" && gimmicks.includes("bomber"))
+    ));
+    gimmicks.push(candidates[Math.floor(random() * candidates.length)]);
+  }
+  return gimmicks;
 }
 
 function rogueRulesFromGimmicks(gimmicks, stageIndex) {
@@ -3643,6 +3737,15 @@ function rogueRulesFromGimmicks(gimmicks, stageIndex) {
   }
   if (count("bomber")) {
     rules.bomber = { bomberLimit: Math.max(2, 6 - count("bomber")) };
+  }
+  if (count("cageEater")) {
+    rules.cageEater = { eaterLimit: Math.max(2, 6 - count("cageEater")) };
+  }
+  if (count("numberClimb")) {
+    rules.numberClimb = { climbStep: Math.min(3, count("numberClimb")) };
+  }
+  if (count("shiftingCages")) {
+    rules.shiftingCages = { cageShiftEvery: Math.max(3, 6 - count("shiftingCages")) };
   }
   if (count("sleeper")) {
     rules.sleeper = { sleeperCount: Math.min(7, 2 + count("sleeper")), sleeperBlockTurns: Math.max(2, 4 - Math.min(2, count("sleeper"))) };
@@ -3668,7 +3771,7 @@ function rogueRulesFromGimmicks(gimmicks, stageIndex) {
 }
 
 function createRogueRunPlans() {
-  return ROGUE_RANDOM_STAGE_SHAPES.map((shape, index) => {
+  const stages = ROGUE_RANDOM_STAGE_SHAPES.map((shape, index) => {
     const gimmicks = randomRogueGimmicks(shape);
     return {
       nameKey: shape.nameKey,
@@ -3680,6 +3783,18 @@ function createRogueRunPlans() {
       rules: rogueRulesFromGimmicks(gimmicks, index),
     };
   });
+  stages.push({
+    boss: true,
+    nameKey: "rogueBossName",
+    difficulty: "hard",
+    itemCount: 14,
+    initialMines: 6,
+    timeLimitMs: 300000,
+    bossHp: ROGUE_BOSS_HP,
+    gimmicks: [],
+    rules: {},
+  });
+  return stages;
 }
 
 function rogueNextStageNumber(isInitial) {
@@ -3687,6 +3802,7 @@ function rogueNextStageNumber(isInitial) {
 }
 
 function rogueGimmickPreviewHtml(plan) {
+  if (plan?.boss) return `<span class="rogue-gimmick-chip rogue-boss-preview-chip"><strong>${t("rogueBossHp", { current: plan.bossHp || ROGUE_BOSS_HP, max: plan.bossHp || ROGUE_BOSS_HP })}</strong><small>${t("rogueBossPreview")}</small></span>`;
   if (!plan?.gimmicks?.length) return `<span class="rogue-gimmick-chip is-quiet">${t("roguePreviewNoGimmick")}</span>`;
   return [...rogueGimmickCounts(plan.gimmicks)].map(([gimmick, count]) => {
     const info = ROGUE_GIMMICK_PREVIEW[gimmick] || {};
@@ -3700,7 +3816,7 @@ function rogueGimmickPreviewHtml(plan) {
 function renderRogueNextPreview(isInitial) {
   const nextStage = rogueNextStageNumber(isInitial);
   const plan = rogueStagePlanAt(nextStage);
-  const stageTitle = t("rogueRunStageNamed", { current: nextStage, total: rogueStageCount(), name: rogueStagePlanName(plan) });
+  const stageTitle = rogueStageDisplayLabel(nextStage, plan);
   const meta = t("rogueNextPreviewMeta", {
     difficulty: difficultyLabel(plan.difficulty),
     time: formatTime(plan.timeLimitMs),
@@ -3721,6 +3837,7 @@ function resetRogueRunState() {
   rogueRunStage = 0;
   rogueRunElapsedMs = 0;
   rogueRunScoreCarry = 0;
+  rogueBossScoreStart = 0;
   rogueRunTotalMistakes = 0;
   rogueRunAbilities = [];
   rogueRunPlans = [];
@@ -3872,7 +3989,7 @@ function isHeartbeatMode() {
 }
 
 function isShiftingCagesMode() {
-  return currentAdventureMode() === "shiftingCages";
+  return currentAdventureMode() === "shiftingCages" || rogueHasGimmick("shiftingCages");
 }
 
 function isGrowingMinesMode() {
@@ -3908,11 +4025,11 @@ function isBomberMode() {
 }
 
 function isCageEaterMode() {
-  return currentAdventureMode() === "cageEater";
+  return currentAdventureMode() === "cageEater" || rogueHasGimmick("cageEater");
 }
 
 function isNumberClimbMode() {
-  return currentAdventureMode() === "numberClimb";
+  return currentAdventureMode() === "numberClimb" || rogueHasGimmick("numberClimb");
 }
 
 function numberClimbResetNumber() {
@@ -3922,14 +4039,20 @@ function numberClimbResetNumber() {
   return 1;
 }
 
+function numberClimbMinimumAllowed() {
+  return Math.max(1, numberClimbMinimum - 1);
+}
+
 function advanceNumberClimb(number, resetNumber) {
   if (!isNumberClimbMode()) return;
+  if (number < numberClimbMinimum) return;
   if (number >= resetNumber) {
     numberClimbMinimum = 1;
     showComboToast(t("numberClimbRestarted", { n: resetNumber }), "combo-toast-lg");
     return;
   }
-  numberClimbMinimum = Math.min(resetNumber, number + 1);
+  const climbStep = adventureRuleConfig("numberClimb").climbStep || 1;
+  numberClimbMinimum = Math.min(resetNumber, number + climbStep);
 }
 
 function renderNumberClimbPanel() {
@@ -3937,15 +4060,16 @@ function renderNumberClimbPanel() {
   numberClimbPanel.hidden = !visible;
   if (!visible) return;
   const resetNumber = numberClimbResetNumber();
+  const displayMinimum = numberClimbMinimumAllowed();
   const digits = Array.from({ length: 9 }, (_, index) => index + 1).map((number) => {
     const classes = ["number-climb-step"];
-    if (number < numberClimbMinimum) classes.push("is-locked");
-    if (number === numberClimbMinimum) classes.push("is-next");
+    if (number < displayMinimum) classes.push("is-locked");
+    if (number === displayMinimum) classes.push("is-next");
     if (number === resetNumber) classes.push("is-reset");
     if (solvedCountForNumber(number) >= SIZE) classes.push("is-complete");
     return `<span class="${classes.join(" ")}">${number}</span>`;
   }).join("");
-  numberClimbPanel.innerHTML = `<strong>${t("numberClimbNext", { n: numberClimbMinimum })}</strong><div>${digits}</div><small>${t("numberClimbReset", { n: resetNumber })}</small>`;
+  numberClimbPanel.innerHTML = `<strong>${t("numberClimbNext", { n: displayMinimum })}</strong><div>${digits}</div><small>${t("numberClimbReset", { n: resetNumber })}</small>`;
 }
 
 function isBomberLikeMode() {
@@ -4418,6 +4542,7 @@ function render() {
   renderToolRow();
   renderRogueAbilityPanel();
   renderNumberClimbPanel();
+  renderRogueBossPanel();
   difficultyEl.textContent = difficultyDisplayLabel();
   difficultyEl.classList.toggle("is-daily", Boolean(currentDailyKey));
   difficultyEl.classList.toggle("is-adventure", Boolean(currentAdventureStage));
@@ -4692,8 +4817,8 @@ function enterNumber(number) {
   }
   if (over || paused || puzzle[selected] !== EMPTY || isCorrectEntry(selected)) return;
 
-  if (isNumberClimbMode() && number < numberClimbMinimum) {
-    message(t("numberClimbBlocked", { n: numberClimbMinimum }));
+  if (isNumberClimbMode() && number < numberClimbMinimumAllowed()) {
+    message(t("numberClimbBlocked", { n: numberClimbMinimumAllowed() }));
     return;
   }
 
@@ -4798,7 +4923,8 @@ function enterNumber(number) {
     flashCompletedCage(completedCage);
     showComboToast(t("cageComplete"));
   }
-  const won = isMineSearchMode() ? isMineSearchCleared() : entries.every((value, index) => value === solution[index]);
+  const boardSolved = isMineSearchMode() ? isMineSearchCleared() : entries.every((value, index) => value === solution[index]);
+  const won = isRogueBossStage() ? rogueBossRemainingHp() <= 0 : boardSolved;
   const shiftedCages = !won && maybeShiftCages(selected);
   if (numberSolvedBefore < SIZE && solvedCountForNumber(number) >= SIZE) {
     showComboToast(t("numberComplete", { n: number }));
@@ -5535,7 +5661,9 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     heartDeadlineMs = currentAdventurePractice ? null : adventureStage?.heartDeadlineMs || null;
     heartDeadlineElapsedMs = 0;
     heartDeadlineStartMs = 0;
-    cageShiftEvery = adventureStage?.cageShiftEvery || null;
+    cageShiftEvery = isShiftingCagesMode()
+      ? adventureRuleConfig("shiftingCages").cageShiftEvery || adventureStage?.cageShiftEvery || 5
+      : null;
     cageShiftSteps = 0;
     cageShiftCountedCells = new Set();
     patrolRoute = [];
@@ -5563,7 +5691,7 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     lightningPhase = "idle";
     currentDailyKey = currentAdventureStage ? null : nextDailyKey;
     if (seed !== null) randomSource = seededRandom(seed);
-    if (adventureStage?.itemMode === "growingMines" || adventureStage?.itemMode === "shiftingCages") {
+    if (adventureStage?.itemMode === "growingMines" || isShiftingCagesMode()) {
       generateCageOnlyUniquePuzzle(config);
     } else if (config.loose) {
       generateLoosePuzzle(config);
@@ -5609,6 +5737,7 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     mistakes = 0;
     totalMistakes = 0;
     score = continuingRogueRun ? rogueRunScoreCarry : 0;
+    rogueBossScoreStart = roguePlan?.boss ? score : 0;
     elapsedMs = 0;
     startTime = 0;
     showScoreCard = false;

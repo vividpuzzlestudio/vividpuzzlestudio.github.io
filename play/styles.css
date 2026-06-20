@@ -185,6 +185,62 @@ h1.title-ja {
   display: none;
 }
 
+.rogue-boss-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px 10px;
+  padding: 7px 9px;
+  border: 1px solid #b94848;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fff5f2, #f7edf4);
+  box-shadow: 0 4px 12px rgba(92, 28, 35, .1);
+}
+
+.rogue-boss-panel[hidden] {
+  display: none;
+}
+
+.rogue-boss-panel > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.rogue-boss-panel strong {
+  color: #a22f36;
+  font-size: 11px;
+  font-weight: 1000;
+}
+
+.rogue-boss-panel span,
+.rogue-boss-panel small {
+  color: #392a2d;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.rogue-boss-track {
+  grid-column: 1 / -1;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #dfd7d5;
+}
+
+.rogue-boss-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #c63f3f, #8e315f);
+  transition: width .22s ease;
+}
+
+.rogue-boss-preview-chip {
+  border-color: #b94848;
+  background: #fff0ed;
+}
+
 .number-climb-panel strong,
 .number-climb-panel small {
   white-space: nowrap;
@@ -2206,6 +2262,68 @@ h1.title-ja {
 
   .number-climb-panel {
     grid-area: abilities;
+  }
+
+  .rogue-boss-panel {
+    grid-area: abilities;
+  }
+
+  .app-shell:has(.rogue-ability-panel:not([hidden])):has(.rogue-boss-panel:not([hidden])) {
+    grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "topbar topbar"
+      "board status"
+      "board abilities"
+      "board boss"
+      "board controls"
+      "board legend"
+      "board footer";
+  }
+
+  body:has(.web-demo-note) .app-shell:has(.rogue-ability-panel:not([hidden])):has(.rogue-boss-panel:not([hidden])) {
+    grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "promo promo"
+      "topbar topbar"
+      "board status"
+      "board abilities"
+      "board boss"
+      "board controls"
+      "board legend"
+      "board footer";
+  }
+
+  .app-shell:has(.rogue-ability-panel:not([hidden])):has(.rogue-boss-panel:not([hidden])) .rogue-boss-panel {
+    grid-area: boss;
+  }
+
+  .app-shell:has(.rogue-ability-panel:not([hidden])):has(.number-climb-panel:not([hidden])) {
+    grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "topbar topbar"
+      "board status"
+      "board abilities"
+      "board climb"
+      "board controls"
+      "board legend"
+      "board footer";
+  }
+
+  body:has(.web-demo-note) .app-shell:has(.rogue-ability-panel:not([hidden])):has(.number-climb-panel:not([hidden])) {
+    grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "promo promo"
+      "topbar topbar"
+      "board status"
+      "board abilities"
+      "board climb"
+      "board controls"
+      "board legend"
+      "board footer";
+  }
+
+  .app-shell:has(.rogue-ability-panel:not([hidden])):has(.number-climb-panel:not([hidden])) .number-climb-panel {
+    grid-area: climb;
   }
 
   .board-wrap {
