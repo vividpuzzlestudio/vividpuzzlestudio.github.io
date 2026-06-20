@@ -1091,6 +1091,10 @@ h1.title-ja {
   pointer-events: none;
 }
 
+.cell.has-pencil-notes .player-marker {
+  opacity: .18 !important;
+}
+
 .player-marker-danger {
   right: 1px;
   top: 1px;
@@ -1890,6 +1894,7 @@ h1.title-ja {
   color: var(--muted);
   font-size: 10px;
   font-weight: 800;
+  line-height: 1.4;
 }
 
 .record-empty {
@@ -1990,18 +1995,18 @@ h1.title-ja {
 
 .adventure-card-status {
   display: block;
-  min-height: 14px;
-  margin-top: 2px;
+  min-height: 0;
   font-size: 10px;
   font-weight: 900;
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 .adventure-card-status.is-empty {
-  visibility: hidden;
+  display: none;
 }
 
 .adventure-button {
+  grid-template-columns: auto minmax(0, 1fr);
   border-color: #7a58b5;
   background: #fbf8ff;
 }
@@ -2009,6 +2014,32 @@ h1.title-ja {
 .adventure-button strong {
   color: #4f3388;
   white-space: nowrap;
+}
+
+.adventure-card-title {
+  justify-items: start !important;
+  text-align: left;
+}
+
+.adventure-card-title strong {
+  line-height: 1.1;
+}
+
+.adventure-card-copy {
+  min-width: 0;
+  justify-items: end !important;
+  text-align: right;
+}
+
+.adventure-card-copy b {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.adventure-card-copy small {
+  font-size: 9px;
+  line-height: 1.1;
 }
 
 .play-route-grid {
@@ -2834,6 +2865,11 @@ h1.title-ja {
   border: 1px solid #ddd6c8;
   border-radius: 8px;
   background: #fffdfa;
+}
+
+.rogue-current-abilities {
+  margin-bottom: 10px;
+  background: linear-gradient(135deg, rgba(122, 88, 181, .07), rgba(248, 189, 85, .09)), #fffdfa;
 }
 
 .rogue-result-abilities strong {

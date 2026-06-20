@@ -49,6 +49,9 @@ const TEXT = {
       close: "閉じる",
       normalRecords: "通常プレイ",
       adventureRecords: "アドベンチャー",
+      rogueRecords: "ローグラン",
+      rogueRecordAbilities: "能力",
+      rogueAbilityRecordUnavailable: "能力記録なし",
       noRecordSummary: "まだ記録はありません",
       difficultyLabel: "難易度",
       time: "時間",
@@ -104,6 +107,8 @@ const TEXT = {
       adventurePractice: "練習",
       adventurePracticeHelp: "時間制限なし / 記録なし",
       adventurePracticeBadge: "練習",
+      adventureCardTimeLimit: "制限時間 {n}分",
+      adventureCardNoTimeLimit: "制限時間なし",
       backToDifficulty: "難易度選択に戻る",
       adventureHintRain: "ヒントの雨",
       adventureHintRainHelp: "全マスヒント / 2分制限",
@@ -123,9 +128,9 @@ const TEXT = {
       adventureBomber: "ボマー",
       adventureBomberHelp: "放置すると爆発 / 5分制限",
       adventureCageEater: "ケージイーター",
-      adventureCageEaterHelp: "放置するとケージ融合",
+      adventureCageEaterHelp: "放置するとケージ融合 / 5分制限",
       adventureNumberClimb: "ナンバークライム",
-      adventureNumberClimbHelp: "小さい数字から埋めろ",
+      adventureNumberClimbHelp: "小さい数字から埋めろ / 5分制限",
       numberClimbNext: "次は {n} 以上",
       numberClimbReset: "{n} でリセット",
       numberClimbBlocked: "今は {n} 以上の数字だけ入力できます。",
@@ -157,6 +162,7 @@ const TEXT = {
       rogueBossStage: "BOSS {name}",
       rogueBossPreview: "スコア獲得でHPを削る",
       rogueBossHp: "HP {current} / {max}",
+      rogueBossNextBoard: "ボスHP残存！ 次の盤面へ",
       rogueAbilities: "獲得能力",
       rogueNoAbilities: "能力なし",
       rogueStageClear: "ステージ {current} クリア",
@@ -294,6 +300,9 @@ const TEXT = {
       close: "Close",
       normalRecords: "Main Mode",
       adventureRecords: "Adventure",
+      rogueRecords: "Rogue Run",
+      rogueRecordAbilities: "Powers",
+      rogueAbilityRecordUnavailable: "No power record",
       noRecordSummary: "No records yet",
       difficultyLabel: "Difficulty",
       time: "Time",
@@ -349,6 +358,8 @@ const TEXT = {
       adventurePractice: "Practice",
       adventurePracticeHelp: "No time limit / no records",
       adventurePracticeBadge: "Practice",
+      adventureCardTimeLimit: "Time limit: {n} min",
+      adventureCardNoTimeLimit: "No time limit",
       backToDifficulty: "Back to Difficulty Selection",
       adventureHintRain: "Hint Rain",
       adventureHintRainHelp: "All hints / 2-minute limit",
@@ -368,9 +379,9 @@ const TEXT = {
       adventureBomber: "Bomber",
       adventureBomberHelp: "Explodes if ignored / 5-minute limit",
       adventureCageEater: "Cage Eater",
-      adventureCageEaterHelp: "Merges cages if ignored",
+      adventureCageEaterHelp: "Merges cages if ignored / 5-minute limit",
       adventureNumberClimb: "Number Climb",
-      adventureNumberClimbHelp: "Fill smaller numbers first",
+      adventureNumberClimbHelp: "Small numbers first / 5-minute limit",
       numberClimbNext: "Next: {n} or higher",
       numberClimbReset: "Reset at {n}",
       numberClimbBlocked: "Only numbers {n} or higher can be entered now.",
@@ -402,6 +413,7 @@ const TEXT = {
       rogueBossStage: "BOSS {name}",
       rogueBossPreview: "Earn score to drain its HP",
       rogueBossHp: "HP {current} / {max}",
+      rogueBossNextBoard: "Boss HP remains! Next board",
       rogueAbilities: "Powers",
       rogueNoAbilities: "No powers",
       rogueStageClear: "Stage {current} Clear",
@@ -526,7 +538,7 @@ const TEXT = {
   },
 };
 const ROGUE_RUN_STAGE_COUNT = 5;
-const ROGUE_BOSS_HP = 750;
+const ROGUE_BOSS_HP = 1500;
 const ROGUE_ABILITY_DEFS = [
   { id: "heartPlus", titleKey: "rogueAbilityHeartPlus", helpKey: "rogueAbilityHeartPlusHelp", stackable: true },
   { id: "heartTime", titleKey: "rogueAbilityHeartTime", helpKey: "rogueAbilityHeartTimeHelp" },
@@ -670,6 +682,7 @@ rogueRewardDialog.innerHTML = `
     <h2 id="rogueRewardTitle"></h2>
     <p id="rogueRewardIntro"></p>
     <div class="rogue-run-progress" id="rogueRunProgress"></div>
+    <div class="rogue-result-abilities rogue-current-abilities" id="rogueCurrentAbilities"></div>
     <div class="rogue-next-preview" id="rogueNextPreview"></div>
     <div class="rogue-reward-list" id="rogueRewardList"></div>
   </form>
@@ -678,6 +691,7 @@ document.body.append(rogueRewardDialog);
 const rogueRewardTitle = rogueRewardDialog.querySelector("#rogueRewardTitle");
 const rogueRewardIntro = rogueRewardDialog.querySelector("#rogueRewardIntro");
 const rogueRunProgress = rogueRewardDialog.querySelector("#rogueRunProgress");
+const rogueCurrentAbilities = rogueRewardDialog.querySelector("#rogueCurrentAbilities");
 const rogueNextPreview = rogueRewardDialog.querySelector("#rogueNextPreview");
 const rogueRewardList = rogueRewardDialog.querySelector("#rogueRewardList");
 
@@ -811,6 +825,7 @@ let recordReturnDialog = null;
 
 const BEST_TIME_KEY = "killer-item-sudoku-best-times-v1";
 const BEST_SCORE_KEY = "killer-item-sudoku-best-scores-v1";
+const ROGUE_BEST_ABILITIES_KEY = "killer-item-sudoku-rogue-best-abilities-v1";
 const NO_MISTAKE_KEY = "killer-item-sudoku-no-mistake-v1";
 const FIRST_RUN_KEY = "killer-item-sudoku-first-run-v1";
 
@@ -904,6 +919,20 @@ function saveBestScore(difficultyKey, value) {
     window.localStorage.setItem(BEST_SCORE_KEY, JSON.stringify(bestScores));
   }
   return { isBest, best: bestScores[difficultyKey] || previousBest };
+}
+
+function readRogueBestAbilities() {
+  try {
+    return JSON.parse(window.localStorage.getItem(ROGUE_BEST_ABILITIES_KEY)) || {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function saveRogueBestAbilities(recordKey, abilities) {
+  const records = readRogueBestAbilities();
+  records[recordKey] = abilities.filter((id) => Boolean(rogueAbilityDef(id)));
+  window.localStorage.setItem(ROGUE_BEST_ABILITIES_KEY, JSON.stringify(records));
 }
 
 function readNoMistakeRecords() {
@@ -3239,7 +3268,12 @@ function renderAdventureChoices() {
       : recordSummary ? `${t("cleared")} ${recordSummary}` : "";
     const statusClass = adventurePracticeEnabled ? "practice-badge" : "clear-badge";
     const statusHidden = statusText ? "" : " is-empty";
-    button.innerHTML = `<strong>${title}</strong><span>${help}<small class="adventure-card-status ${statusClass}${statusHidden}">${statusText || t("adventurePracticeBadge")}</small></span>`;
+    const description = help.split(" / ")[0];
+    const stageTimeLimitMs = ADVENTURE_STAGES[key]?.timeLimitMs || null;
+    const timeLimit = adventurePracticeEnabled || !stageTimeLimitMs
+      ? t("adventureCardNoTimeLimit")
+      : t("adventureCardTimeLimit", { n: Math.round(stageTimeLimitMs / 60000) });
+    button.innerHTML = `<span class="adventure-card-title"><strong>${title}</strong><small class="adventure-card-status ${statusClass}${statusHidden}">${statusText || t("adventurePracticeBadge")}</small></span><span class="adventure-card-copy"><b>${description}</b><small>${timeLimit}</small></span>`;
     button.addEventListener("click", () => {
       void startAdventureStage(key);
     });
@@ -3395,7 +3429,7 @@ function renderRecords() {
     badges: noMistakeBadge(key),
   })));
 
-  appendRecordSection(t("adventureRecords"), Object.keys(ADVENTURE_STAGES).map((key) => {
+  appendRecordSection(t("adventureRecords"), Object.keys(ADVENTURE_STAGES).filter((key) => key !== "rogueRun").map((key) => {
     const recordKey = `adventure:${key}`;
     return {
       label: adventureStageLabel(key),
@@ -3403,6 +3437,21 @@ function renderRecords() {
       badges: noMistakeBadge(recordKey),
     };
   }));
+
+  const rogueRecordKey = "adventure:rogueRun";
+  const rogueAbilityRecords = readRogueBestAbilities();
+  const recordedAbilities = Array.isArray(rogueAbilityRecords[rogueRecordKey])
+    ? rogueAbilityRecords[rogueRecordKey].filter((id) => Boolean(rogueAbilityDef(id)))
+    : [];
+  const abilityLabels = rogueAbilitySummaryLabels(recordedAbilities);
+  appendRecordSection(t("rogueRecords"), [{
+    label: t("adventureRogueRun"),
+    summary: recordSummaryFromStores(rogueRecordKey, bestTimes, bestScores),
+    badges: noMistakeBadge(rogueRecordKey),
+    detail: abilityLabels.length
+      ? `${t("rogueRecordAbilities")}: ${abilityLabels.join(" / ")}`
+      : t("rogueAbilityRecordUnavailable"),
+  }]);
 
   const dailyRecords = buildDailyRecordGroups(bestTimes, bestScores, noMistakeRecords).flatMap((group) => (
     group.records.map((record) => {
@@ -3601,6 +3650,24 @@ function rogueBossRemainingHp() {
   return Math.max(0, maxHp - Math.max(0, score - rogueBossScoreStart));
 }
 
+async function continueRogueBossBattle() {
+  const carry = {
+    bossScoreStart: rogueBossScoreStart,
+    elapsedMs: currentElapsedMs(),
+    mistakes,
+    totalMistakes,
+    undoUsed,
+    reviveUsed,
+  };
+  rogueRunScoreCarry = score;
+  await newGame(ADVENTURE_STAGES.rogueRun.difficulty, {
+    adventureStage: "rogueRun",
+    rogueContinue: true,
+    bossContinue: carry,
+  });
+  if (!over) showComboToast(t("rogueBossNextBoard"), "combo-toast-lg", { forceFull: true });
+}
+
 function renderRogueBossPanel() {
   const visible = isRogueBossStage() && !over;
   rogueBossPanel.hidden = !visible;
@@ -3684,9 +3751,9 @@ function rogueAbilityMasteryLabel(id, count) {
   return null;
 }
 
-function rogueAbilitySummaryLabels() {
+function rogueAbilitySummaryLabels(abilities = rogueRunAbilities) {
   const counts = new Map();
-  rogueRunAbilities.forEach((id) => counts.set(id, (counts.get(id) || 0) + 1));
+  abilities.forEach((id) => counts.set(id, (counts.get(id) || 0) + 1));
   return [...counts.entries()].flatMap(([id, count]) => {
     const label = count > 1 ? `${rogueAbilityLabel(id)} x${count}` : rogueAbilityLabel(id);
     const mastery = rogueAbilityMasteryLabel(id, count);
@@ -3856,6 +3923,8 @@ function showRogueRewardDialog() {
   rogueRunProgress.textContent = isInitial
     ? t("rogueInitialPower")
     : t("rogueStageClear", { current: rogueRunStage });
+  const currentAbilityLabels = rogueAbilitySummaryLabels();
+  rogueCurrentAbilities.innerHTML = `<strong>${t("rogueAbilities")}</strong><div>${currentAbilityLabels.map((label) => `<span>${label}</span>`).join("") || `<span>${t("rogueNoAbilities")}</span>`}</div>`;
   renderRogueNextPreview(isInitial);
   rogueRewardList.innerHTML = "";
   rewards.forEach((ability) => {
@@ -4939,6 +5008,10 @@ function enterNumber(number) {
     finish(true);
     return;
   }
+  if (isRogueBossStage() && boardSolved) {
+    void continueRogueBossBattle();
+    return;
+  }
   render();
 }
 
@@ -5300,6 +5373,12 @@ function finish(won, options = {}) {
   if (canSaveRecord && noMistakeClear) saveNoMistakeRecord(recordKey);
   const timeRecord = canSaveRecord ? saveBestTime(recordKey, resultElapsedMs) : null;
   const scoreRecord = canSaveRecord ? saveBestScore(recordKey, score) : null;
+  if (canSaveRecord && isRogueRunMode()) {
+    const savedAbilities = readRogueBestAbilities();
+    if (scoreRecord.isBest || !Array.isArray(savedAbilities[recordKey])) {
+      saveRogueBestAbilities(recordKey, rogueRunAbilities);
+    }
+  }
   if (won && !currentAdventurePractice) renderDifficultyChoices();
   render();
   trackWebEvent(won ? "game_clear" : "game_over", {
@@ -5632,6 +5711,7 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
   generating = true;
   const requestedAdventureStage = options.adventureStage || null;
   const continuingRogueRun = requestedAdventureStage === "rogueRun" && options.rogueContinue && rogueRunActive;
+  const bossContinuation = continuingRogueRun ? options.bossContinue || null : null;
   const roguePlan = continuingRogueRun ? currentRogueStagePlan() : null;
   currentDifficulty = roguePlan?.difficulty || difficultyKey;
   const config = DIFFICULTIES[currentDifficulty];
@@ -5734,19 +5814,19 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
       const openCell = puzzle.findIndex((value, index) => value === EMPTY && !blockedCells.has(index));
       if (openCell >= 0) selected = openCell;
     }
-    mistakes = 0;
-    totalMistakes = 0;
+    mistakes = bossContinuation?.mistakes ?? 0;
+    totalMistakes = bossContinuation?.totalMistakes ?? 0;
     score = continuingRogueRun ? rogueRunScoreCarry : 0;
-    rogueBossScoreStart = roguePlan?.boss ? score : 0;
-    elapsedMs = 0;
+    rogueBossScoreStart = roguePlan?.boss ? bossContinuation?.bossScoreStart ?? score : 0;
+    elapsedMs = bossContinuation?.elapsedMs ?? 0;
     startTime = 0;
     showScoreCard = false;
     streak = 0;
     activeNumber = null;
     noteMode = false;
     undoStack = [];
-    undoUsed = false;
-    reviveUsed = false;
+    undoUsed = bossContinuation?.undoUsed ?? false;
+    reviveUsed = bossContinuation?.reviveUsed ?? false;
     revivePending = false;
     over = false;
     paused = false;
