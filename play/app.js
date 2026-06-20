@@ -21,6 +21,8 @@ const ADVENTURE_STAGES = {
   shiftingCages: { difficulty: "hard", itemMode: "shiftingCages", itemCount: 8, cageShiftEvery: 5, timeLimitMs: 240000 },
   patrol: { difficulty: "hard", itemMode: "patrol", itemCount: 10, timeLimitMs: 240000 },
   bomber: { difficulty: "hard", itemMode: "bomber", itemCount: 10, timeLimitMs: 300000, bomberLimit: 4 },
+  cageEater: { difficulty: "hard", itemMode: "cageEater", itemCount: 10, timeLimitMs: 300000, eaterLimit: 4 },
+  numberClimb: { difficulty: "hard", itemMode: "numberClimb", itemCount: 10, timeLimitMs: 300000 },
   sleeper: { difficulty: "hard", itemMode: "sleeper", itemCount: 10, timeLimitMs: 300000, sleeperBlockTurns: 3 },
   jammer: { difficulty: "hard", itemMode: "jammer", itemCount: 10, jammerCount: 4, timeLimitMs: 300000 },
   chaser: { difficulty: "hard", itemMode: "chaser", itemCount: 10, timeLimitMs: 300000, chaserIntervalMs: 2500, chaserStunMs: 5000 },
@@ -120,6 +122,14 @@ const TEXT = {
       adventurePatrolHelp: "動く封鎖が出現 / 4分制限",
       adventureBomber: "ボマー",
       adventureBomberHelp: "放置すると爆発 / 5分制限",
+      adventureCageEater: "ケージイーター",
+      adventureCageEaterHelp: "放置すると隣接ケージを融合 / 5分制限",
+      adventureNumberClimb: "ナンバークライム",
+      adventureNumberClimbHelp: "小さい数字から埋めろ / 5分制限",
+      numberClimbNext: "次は {n} 以上",
+      numberClimbReset: "{n} でリセット",
+      numberClimbBlocked: "今は {n} 以上の数字だけ入力できます。",
+      numberClimbRestarted: "{n} 到達！ 1から再スタート",
       adventureSleeper: "スリーパー",
       adventureSleeperHelp: "近くを埋めると周囲封鎖 / 5分制限",
       adventureJammer: "ジャマー",
@@ -208,6 +218,10 @@ const TEXT = {
       bomberBlocked: "このマスはボマーがいます。",
       bomberDefused: "ボマー鎮火！",
       bomberExploded: "ボマー爆発 {n}マス 消去！",
+      cageEaterBlocked: "このマスはケージイーターがいます。",
+      cageEaterCalmed: "ケージイーターを抑えた！",
+      cageEaterMerged: "ケージ融合！ {n}マスに巨大化！",
+      cageEaterNoTarget: "融合できる隣接ケージなし！",
       sleeperBlocked: "このマスはスリーパーがいます。",
       sleeperAwake: "スリーパー起床 周囲封鎖！",
       sleeperReleased: "封鎖解除！",
@@ -346,6 +360,14 @@ const TEXT = {
       adventurePatrolHelp: "Moving blockers appear / 4-minute limit",
       adventureBomber: "Bomber",
       adventureBomberHelp: "Explodes if ignored / 5-minute limit",
+      adventureCageEater: "Cage Eater",
+      adventureCageEaterHelp: "Merges an adjacent cage if ignored / 5-minute limit",
+      adventureNumberClimb: "Number Climb",
+      adventureNumberClimbHelp: "Fill the smaller numbers first / 5-minute limit",
+      numberClimbNext: "Next: {n} or higher",
+      numberClimbReset: "Reset at {n}",
+      numberClimbBlocked: "Only numbers {n} or higher can be entered now.",
+      numberClimbRestarted: "Reached {n}! Back to 1",
       adventureSleeper: "Sleeper",
       adventureSleeperHelp: "Fill nearby cells to wake it / 5-minute limit",
       adventureJammer: "Jammer",
@@ -434,6 +456,10 @@ const TEXT = {
       bomberBlocked: "A bomber is on this cell.",
       bomberDefused: "Bomber cooled down!",
       bomberExploded: "Bomber cleared {n} cells!",
+      cageEaterBlocked: "The Cage Eater is on this cell.",
+      cageEaterCalmed: "Cage Eater calmed down!",
+      cageEaterMerged: "Cages merged into {n} cells!",
+      cageEaterNoTarget: "No adjacent cage can be merged!",
       sleeperBlocked: "A sleeper is on this cell.",
       sleeperAwake: "Sleeper woke up and blocked nearby cells!",
       sleeperReleased: "Blocks released!",
@@ -610,6 +636,10 @@ const rogueAbilityPanel = document.createElement("section");
 rogueAbilityPanel.className = "rogue-ability-panel";
 rogueAbilityPanel.hidden = true;
 statusPanel.insertAdjacentElement("afterend", rogueAbilityPanel);
+const numberClimbPanel = document.createElement("section");
+numberClimbPanel.className = "number-climb-panel";
+numberClimbPanel.hidden = true;
+rogueAbilityPanel.insertAdjacentElement("afterend", numberClimbPanel);
 const rogueRewardDialog = document.createElement("dialog");
 rogueRewardDialog.className = "modal rogue-reward-dialog";
 rogueRewardDialog.innerHTML = `
@@ -716,6 +746,7 @@ let patrolSteps = [];
 let bomberRoute = [];
 let bomberStep = 0;
 let bomberHeat = 0;
+let numberClimbMinimum = 1;
 let sleeperCells = [];
 let sleeperBlockedCells = new Set();
 let sleeperBlockedTurns = new Map();
@@ -2590,6 +2621,8 @@ function placeAdventureItems(stage) {
   if (stage.itemMode === "heartbeat") return placeHeartbeatItems(stage.itemCount || 16);
   if (stage.itemMode === "patrol") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   if (stage.itemMode === "bomber") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
+  if (stage.itemMode === "cageEater") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
+  if (stage.itemMode === "numberClimb") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   if (stage.itemMode === "sleeper") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   if (stage.itemMode === "jammer") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   if (stage.itemMode === "chaser") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
@@ -2694,6 +2727,7 @@ function renderBoard() {
   const patrolNextSet = new Set(nextPatrolCells(patrolBlockedCellSet));
   const bomberCell = currentBomberCell();
   const bomberNext = nextBomberCell();
+  const cageEaterActive = isCageEaterMode();
   const chaserCurrent = currentChaserCell();
   const chaserNext = nextChaserCell();
   const chaserStunned = isChaserStunned();
@@ -2701,7 +2735,9 @@ function renderBoard() {
   const strikerNext = nextStrikerCell();
   const strikerStunned = isStrikerStunned();
   const lightningSet = new Set(isLightningMode() ? lightningCells : []);
-  const bomberLimit = adventureRuleConfig("bomber").bomberLimit || 4;
+  const bomberLimit = cageEaterActive
+    ? adventureRuleConfig("cageEater").eaterLimit || 4
+    : adventureRuleConfig("bomber").bomberLimit || 4;
   const bomberDefuseCells = bomberCell !== null && bomberHeat >= bomberLimit - 1
     ? new Set(surroundingCells(bomberCell).filter((cell) => puzzle[cell] === EMPTY && entries[cell] === EMPTY))
     : new Set();
@@ -2738,8 +2774,11 @@ function renderBoard() {
     if (!jammed && matchingNumber && value === matchingNumber && index !== selected) cell.classList.add("same-number");
     if (patrolBlockedCellSet.has(index)) cell.classList.add("patrol-blocked");
     if (patrolNextSet.has(index)) cell.classList.add("patrol-next");
-    if (index === bomberCell) cell.classList.add("bomber-blocked", `bomber-heat-${Math.min(3, bomberHeat)}`);
-    if (index === bomberNext) cell.classList.add("bomber-next");
+    if (index === bomberCell) cell.classList.add(
+      cageEaterActive ? "cage-eater-blocked" : "bomber-blocked",
+      `${cageEaterActive ? "cage-eater" : "bomber"}-heat-${Math.min(3, bomberHeat)}`
+    );
+    if (index === bomberNext) cell.classList.add(cageEaterActive ? "cage-eater-next" : "bomber-next");
     if (index === chaserCurrent) cell.classList.add("chaser-blocked", chaserStunned ? "chaser-stunned" : "chaser-active");
     if (index === chaserNext) cell.classList.add("chaser-next");
     if (index === strikerCurrent) {
@@ -2754,7 +2793,7 @@ function renderBoard() {
         ? "lightning-strike"
         : lightningPhase === "danger" ? "lightning-danger" : "lightning-warning");
     }
-    if (bomberDefuseCells.has(index)) cell.classList.add("bomber-defuse-zone");
+    if (bomberDefuseCells.has(index)) cell.classList.add(cageEaterActive ? "cage-eater-defuse-zone" : "bomber-defuse-zone");
     if (sleeperBlockedCells.has(index)) {
       const blockedTurns = sleeperBlockedTurns.get(index) || sleeperBlockTurns || 1;
       cell.classList.add("sleeper-blocked-zone", `sleeper-blocked-turn-${Math.max(1, Math.min(3, blockedTurns))}`);
@@ -2837,7 +2876,7 @@ function renderBoard() {
 
     if (index === bomberCell) {
       const marker = document.createElement("span");
-      marker.className = "bomber-marker";
+      marker.className = cageEaterActive ? "cage-eater-marker" : "bomber-marker";
       marker.setAttribute("aria-hidden", "true");
       cell.append(marker);
     }
@@ -3029,10 +3068,12 @@ function renderPad() {
     const noted = notes.get(selected)?.has(number);
     const button = document.createElement("button");
     button.className = solved ? "number-button number-button-complete" : "number-button";
+    const climbLocked = isNumberClimbMode() && !noteMode && number < numberClimbMinimum;
+    if (climbLocked) button.classList.add("number-button-climb-locked");
     if (noted) button.classList.add(noteMode ? "number-button-noted" : "number-button-candidate");
     button.type = "button";
     button.textContent = number;
-    button.disabled = solved || blindIntroActive || lockedByMineNote;
+    button.disabled = solved || blindIntroActive || lockedByMineNote || climbLocked;
     button.setAttribute("aria-label", solved ? t("allEntered", { n: number }) : t("enterNumber", { n: number }));
     button.addEventListener("click", () => enterNumber(number));
     padEl.append(button);
@@ -3137,6 +3178,8 @@ function renderAdventureChoices() {
     ["shiftingCages", t("adventureShiftingCages"), t("adventureShiftingCagesHelp")],
     ["patrol", t("adventurePatrol"), t("adventurePatrolHelp")],
     ["bomber", t("adventureBomber"), t("adventureBomberHelp")],
+    ["cageEater", t("adventureCageEater"), t("adventureCageEaterHelp")],
+    ["numberClimb", t("adventureNumberClimb"), t("adventureNumberClimbHelp")],
     ["sleeper", t("adventureSleeper"), t("adventureSleeperHelp")],
     ["jammer", t("adventureJammer"), t("adventureJammerHelp")],
     ["chaser", t("adventureChaser"), t("adventureChaserHelp")],
@@ -3445,6 +3488,8 @@ function adventureStageLabel(stageKey) {
   if (stageKey === "heartbeat") return t("adventureHeartbeat");
   if (stageKey === "patrol") return t("adventurePatrol");
   if (stageKey === "bomber") return t("adventureBomber");
+  if (stageKey === "cageEater") return t("adventureCageEater");
+  if (stageKey === "numberClimb") return t("adventureNumberClimb");
   if (stageKey === "sleeper") return t("adventureSleeper");
   if (stageKey === "jammer") return t("adventureJammer");
   if (stageKey === "chaser") return t("adventureChaser");
@@ -3862,6 +3907,51 @@ function isBomberMode() {
   return currentAdventureMode() === "bomber" || rogueHasGimmick("bomber");
 }
 
+function isCageEaterMode() {
+  return currentAdventureMode() === "cageEater";
+}
+
+function isNumberClimbMode() {
+  return currentAdventureMode() === "numberClimb";
+}
+
+function numberClimbResetNumber() {
+  for (let number = 9; number >= 1; number -= 1) {
+    if (solvedCountForNumber(number) < SIZE) return number;
+  }
+  return 1;
+}
+
+function advanceNumberClimb(number, resetNumber) {
+  if (!isNumberClimbMode()) return;
+  if (number >= resetNumber) {
+    numberClimbMinimum = 1;
+    showComboToast(t("numberClimbRestarted", { n: resetNumber }), "combo-toast-lg");
+    return;
+  }
+  numberClimbMinimum = Math.min(resetNumber, number + 1);
+}
+
+function renderNumberClimbPanel() {
+  const visible = isNumberClimbMode() && !over;
+  numberClimbPanel.hidden = !visible;
+  if (!visible) return;
+  const resetNumber = numberClimbResetNumber();
+  const digits = Array.from({ length: 9 }, (_, index) => index + 1).map((number) => {
+    const classes = ["number-climb-step"];
+    if (number < numberClimbMinimum) classes.push("is-locked");
+    if (number === numberClimbMinimum) classes.push("is-next");
+    if (number === resetNumber) classes.push("is-reset");
+    if (solvedCountForNumber(number) >= SIZE) classes.push("is-complete");
+    return `<span class="${classes.join(" ")}">${number}</span>`;
+  }).join("");
+  numberClimbPanel.innerHTML = `<strong>${t("numberClimbNext", { n: numberClimbMinimum })}</strong><div>${digits}</div><small>${t("numberClimbReset", { n: resetNumber })}</small>`;
+}
+
+function isBomberLikeMode() {
+  return isBomberMode() || isCageEaterMode();
+}
+
 function isSleeperMode() {
   return currentAdventureMode() === "sleeper" || rogueHasGimmick("sleeper");
 }
@@ -4029,14 +4119,14 @@ function bomberAvoidCells() {
 }
 
 function canBomberOccupy(index, avoidCells = bomberAvoidCells()) {
-  if (!isBomberMode() || puzzle[index] !== EMPTY || entries[index] !== EMPTY) return false;
+  if (!isBomberLikeMode() || puzzle[index] !== EMPTY || entries[index] !== EMPTY) return false;
   if (avoidCells.has(index)) return false;
   const openCells = entries.filter((value, cell) => puzzle[cell] === EMPTY && value === EMPTY).length;
   return openCells > 1;
 }
 
 function normalizeBomberStep() {
-  if (!isBomberMode() || !bomberRoute.length) return null;
+  if (!isBomberLikeMode() || !bomberRoute.length) return null;
   const avoidCells = bomberAvoidCells();
   for (let count = 0; count < bomberRoute.length; count += 1) {
     const step = ((bomberStep % bomberRoute.length) + bomberRoute.length) % bomberRoute.length;
@@ -4055,7 +4145,7 @@ function currentBomberCell() {
 }
 
 function nextBomberCell() {
-  if (!isBomberMode() || !bomberRoute.length) return null;
+  if (!isBomberLikeMode() || !bomberRoute.length) return null;
   const avoidCells = bomberAvoidCells();
   for (let count = 1; count < bomberRoute.length; count += 1) {
     const cell = bomberRoute[(bomberStep + count) % bomberRoute.length];
@@ -4068,7 +4158,7 @@ function setupBomber() {
   bomberRoute = [];
   bomberStep = 0;
   bomberHeat = 0;
-  if (!isBomberMode()) return;
+  if (!isBomberLikeMode()) return;
   bomberRoute = makePatrolRoute();
   const avoidCells = bomberAvoidCells();
   const firstOpen = bomberRoute.findIndex((cell) => canBomberOccupy(cell, avoidCells));
@@ -4076,7 +4166,7 @@ function setupBomber() {
 }
 
 function advanceBomber() {
-  if (!isBomberMode() || !bomberRoute.length) return false;
+  if (!isBomberLikeMode() || !bomberRoute.length) return false;
   const before = currentBomberCell();
   if (before === null) return false;
   const avoidCells = bomberAvoidCells();
@@ -4106,21 +4196,66 @@ function clearAroundEnemy(index) {
   return cleared;
 }
 
+function canMergeCages(first, second) {
+  if (!first || !second || first.id === second.id) return false;
+  const cells = [...new Set([...first.cells, ...second.cells])];
+  if (cells.length > SIZE) return false;
+  const digits = new Set(cells.map((cell) => solution[cell]));
+  return digits.size === cells.length;
+}
+
+function mergeAdjacentCage(index) {
+  const source = cageForCell(index);
+  if (!source) return null;
+  const neighborIds = new Set(source.cells.flatMap(orthogonalCells)
+    .map((cell) => cellToCage.get(cell))
+    .filter((cageId) => cageId !== undefined && cageId !== source.id));
+  const candidates = shuffle([...neighborIds]
+    .map((cageId) => cages.find((cage) => cage.id === cageId))
+    .filter((cage) => canMergeCages(source, cage)));
+  const target = candidates[0];
+  if (!target) return null;
+
+  const mergedCells = [...new Set([...source.cells, ...target.cells])];
+  const remaining = cages.filter((cage) => cage.id !== source.id && cage.id !== target.id);
+  remaining.push({
+    id: -1,
+    cells: mergedCells,
+    sum: mergedCells.reduce((total, cell) => total + solution[cell], 0),
+  });
+  cages = remaining.map((cage, cageId) => ({ ...cage, id: cageId }));
+  buildCageLookups();
+  flashCellsEffect(mergedCells, "effect-cage-shift", 760);
+  return mergedCells;
+}
+
 function updateBomberAfterInput(inputCell) {
-  if (!isBomberMode()) return { clearedCells: [] };
+  if (!isBomberLikeMode()) return { clearedCells: [] };
   const bomberCell = currentBomberCell();
   if (bomberCell === null) return { clearedCells: [] };
 
   if (surroundingCells(bomberCell).includes(inputCell)) {
     bomberHeat = 0;
-    showComboToast(t("bomberDefused"), "combo-toast-normal");
+    showComboToast(t(isCageEaterMode() ? "cageEaterCalmed" : "bomberDefused"), "combo-toast-normal");
     advanceBomber();
     return { clearedCells: [] };
   }
 
   bomberHeat += 1;
-  const limit = adventureRuleConfig("bomber").bomberLimit || 4;
+  const limit = isCageEaterMode()
+    ? adventureRuleConfig("cageEater").eaterLimit || 4
+    : adventureRuleConfig("bomber").bomberLimit || 4;
   if (bomberHeat >= limit) {
+    if (isCageEaterMode()) {
+      const mergedCells = mergeAdjacentCage(bomberCell);
+      bomberHeat = 0;
+      flashEffect(bomberCell, "effect-cage-shift", 760);
+      showComboToast(mergedCells
+        ? t("cageEaterMerged", { n: mergedCells.length })
+        : t("cageEaterNoTarget"), "combo-toast-lg");
+      advanceBomber();
+      return { clearedCells: [], mergedCage: Boolean(mergedCells) };
+    }
     const cleared = clearAroundEnemy(bomberCell);
     bomberHeat = 0;
     flashEffect(bomberCell, "effect-mine", 700);
@@ -4282,6 +4417,7 @@ function render() {
   renderLegend();
   renderToolRow();
   renderRogueAbilityPanel();
+  renderNumberClimbPanel();
   difficultyEl.textContent = difficultyDisplayLabel();
   difficultyEl.classList.toggle("is-daily", Boolean(currentDailyKey));
   difficultyEl.classList.toggle("is-adventure", Boolean(currentAdventureStage));
@@ -4330,6 +4466,7 @@ function snapshotState() {
     bomberRoute: [...bomberRoute],
     bomberStep,
     bomberHeat,
+    numberClimbMinimum,
     sleeperCells: [...sleeperCells],
     sleeperBlockedCells: new Set(sleeperBlockedCells),
     sleeperBlockedTurns: new Map(sleeperBlockedTurns),
@@ -4364,6 +4501,7 @@ function restoreSnapshot(snapshot) {
   bomberRoute = [...(snapshot.bomberRoute || [])];
   bomberStep = snapshot.bomberStep || 0;
   bomberHeat = snapshot.bomberHeat || 0;
+  numberClimbMinimum = snapshot.numberClimbMinimum || 1;
   sleeperCells = [...(snapshot.sleeperCells || (snapshot.sleeperCell !== undefined && snapshot.sleeperCell !== null ? [snapshot.sleeperCell] : []))];
   sleeperBlockedCells = new Set(snapshot.sleeperBlockedCells || []);
   sleeperBlockedTurns = new Map(snapshot.sleeperBlockedTurns || [...sleeperBlockedCells].map((cell) => [cell, snapshot.sleeperBlockTurns || 0]));
@@ -4554,6 +4692,11 @@ function enterNumber(number) {
   }
   if (over || paused || puzzle[selected] !== EMPTY || isCorrectEntry(selected)) return;
 
+  if (isNumberClimbMode() && number < numberClimbMinimum) {
+    message(t("numberClimbBlocked", { n: numberClimbMinimum }));
+    return;
+  }
+
   if (patrolBlockedCellsFor().includes(selected)) {
     message(t("patrolBlocked"));
     flashEffect(selected, "effect-patrol-blocked", 500);
@@ -4562,7 +4705,7 @@ function enterNumber(number) {
   }
 
   if (selected === currentBomberCell()) {
-    message(t("bomberBlocked"));
+    message(t(isCageEaterMode() ? "cageEaterBlocked" : "bomberBlocked"));
     flashEffect(selected, "effect-bomber-blocked", 500);
     render();
     return;
@@ -4625,6 +4768,7 @@ function enterNumber(number) {
   const selectedCage = cageForCell(selected);
   const cageWasComplete = isCompletedCage(selectedCage);
   const numberSolvedBefore = solvedCountForNumber(number);
+  const numberClimbReset = numberClimbResetNumber();
   entries[selected] = number;
   streak += 1;
   const points = correctInputPoints();
@@ -4640,6 +4784,7 @@ function enterNumber(number) {
       : t("streak", { streak, points }), level);
   }
   const triggeredItem = triggerItem(selected);
+  advanceNumberClimb(number, numberClimbReset);
   const bomberEffect = updateBomberAfterInput(selected);
   updateSleeperAfterInput(selected);
   clearSolvedJammerCages(true);
@@ -4659,7 +4804,7 @@ function enterNumber(number) {
     showComboToast(t("numberComplete", { n: number }));
   }
   if (!won) advancePatrol();
-  if (triggeredItem || shiftedCages || bomberEffect.clearedCells.length) {
+  if (triggeredItem || shiftedCages || bomberEffect.clearedCells.length || bomberEffect.mergedCage) {
     sealItemEffectsInLastUndo(selected, scoreBeforeInput, streakBeforeInput, points, {
       clearedCells: [...(triggeredItem?.clearedCells || []), ...bomberEffect.clearedCells],
     });
@@ -5244,6 +5389,7 @@ function saveInitialState() {
     bomberRoute: [...bomberRoute],
     bomberStep,
     bomberHeat,
+    numberClimbMinimum,
     sleeperCells: [...sleeperCells],
     sleeperBlockedCells: new Set(sleeperBlockedCells),
     sleeperBlockedTurns: new Map(sleeperBlockedTurns),
@@ -5292,6 +5438,7 @@ function retryGame() {
   bomberRoute = [...(initialState.bomberRoute || [])];
   bomberStep = initialState.bomberStep || 0;
   bomberHeat = initialState.bomberHeat || 0;
+  numberClimbMinimum = initialState.numberClimbMinimum || 1;
   sleeperCells = [...(initialState.sleeperCells || (initialState.sleeperCell !== undefined && initialState.sleeperCell !== null ? [initialState.sleeperCell] : []))];
   sleeperBlockedCells = new Set(initialState.sleeperBlockedCells || []);
   sleeperBlockedTurns = new Map(initialState.sleeperBlockedTurns || [...sleeperBlockedCells].map((cell) => [cell, initialState.sleeperBlockTurns || 0]));
@@ -5396,6 +5543,7 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     bomberRoute = [];
     bomberStep = 0;
     bomberHeat = 0;
+    numberClimbMinimum = 1;
     sleeperCells = [];
     sleeperBlockedCells = new Set();
     sleeperBlockedTurns = new Map();
