@@ -135,6 +135,7 @@ const TEXT = {
       numberClimbReset: "{n} でリセット",
       numberClimbBlocked: "今は {n} 以上の数字だけ入力できます。",
       numberClimbRestarted: "{n} 到達！ 1から再スタート",
+      numberClimbMineReset: "地雷でリセット！ 次は1以上",
       adventureSleeper: "スリーパー",
       adventureSleeperHelp: "近くを埋めると周囲封鎖 / 5分制限",
       adventureJammer: "ジャマー",
@@ -386,6 +387,7 @@ const TEXT = {
       numberClimbReset: "Reset at {n}",
       numberClimbBlocked: "Only numbers {n} or higher can be entered now.",
       numberClimbRestarted: "Reached {n}! Back to 1",
+      numberClimbMineReset: "Mine reset! Next: 1 or higher",
       adventureSleeper: "Sleeper",
       adventureSleeperHelp: "Fill nearby cells to wake it / 5-minute limit",
       adventureJammer: "Jammer",
@@ -781,8 +783,8 @@ let cageShiftCountedCells = new Set();
 let patrolRoute = [];
 let patrolSteps = [];
 let bomberRoute = [];
-let bomberStep = 0;
-let bomberHeat = 0;
+let bomberSteps = [];
+let bomberHeats = [];
 let numberClimbMinimum = 1;
 let sleeperCells = [];
 let sleeperBlockedCells = new Set();
@@ -2798,8 +2800,11 @@ function renderBoard() {
   const patrolCellSet = new Set(patrolCells);
   const patrolBlockedCellSet = new Set(patrolBlockedCellsFor(patrolCells));
   const patrolNextSet = new Set(nextPatrolCells(patrolBlockedCellSet));
-  const bomberCell = currentBomberCell();
-  const bomberNext = nextBomberCell();
+  const bomberCells = currentBomberCells();
+  const bomberIndexByCell = new Map(bomberCells
+    .map((cell, index) => [cell, index])
+    .filter(([cell]) => cell !== null));
+  const bomberNextSet = new Set(nextBomberCells().filter((cell) => cell !== null));
   const cageEaterActive = isCageEaterMode();
   const chaserCurrent = currentChaserCell();
   const chaserNext = nextChaserCell();
@@ -2811,9 +2816,11 @@ function renderBoard() {
   const bomberLimit = cageEaterActive
     ? adventureRuleConfig("cageEater").eaterLimit || 4
     : adventureRuleConfig("bomber").bomberLimit || 4;
-  const bomberDefuseCells = bomberCell !== null && bomberHeat >= bomberLimit - 1
-    ? new Set(surroundingCells(bomberCell).filter((cell) => puzzle[cell] === EMPTY && entries[cell] === EMPTY))
-    : new Set();
+  const bomberDefuseCells = new Set(bomberCells.flatMap((cell, index) => (
+    cell !== null && (bomberHeats[index] || 0) >= bomberLimit - 1
+      ? surroundingCells(cell).filter((target) => puzzle[target] === EMPTY && entries[target] === EMPTY)
+      : []
+  )));
   normalizeSleeperBlocks();
   boardEl.innerHTML = "";
   boardEl.classList.toggle("blind-intro", blindMode && blindIntroActive);
@@ -2847,11 +2854,14 @@ function renderBoard() {
     if (!jammed && matchingNumber && value === matchingNumber && index !== selected) cell.classList.add("same-number");
     if (patrolBlockedCellSet.has(index)) cell.classList.add("patrol-blocked");
     if (patrolNextSet.has(index)) cell.classList.add("patrol-next");
-    if (index === bomberCell) cell.classList.add(
-      cageEaterActive ? "cage-eater-blocked" : "bomber-blocked",
-      `${cageEaterActive ? "cage-eater" : "bomber"}-heat-${Math.min(3, bomberHeat)}`
-    );
-    if (index === bomberNext) cell.classList.add(cageEaterActive ? "cage-eater-next" : "bomber-next");
+    if (bomberIndexByCell.has(index)) {
+      const bomberIndex = bomberIndexByCell.get(index);
+      cell.classList.add(
+        cageEaterActive ? "cage-eater-blocked" : "bomber-blocked",
+        `${cageEaterActive ? "cage-eater" : "bomber"}-heat-${Math.min(3, bomberHeats[bomberIndex] || 0)}`
+      );
+    }
+    if (bomberNextSet.has(index)) cell.classList.add(cageEaterActive ? "cage-eater-next" : "bomber-next");
     if (index === chaserCurrent) cell.classList.add("chaser-blocked", chaserStunned ? "chaser-stunned" : "chaser-active");
     if (index === chaserNext) cell.classList.add("chaser-next");
     if (index === strikerCurrent) {
@@ -2947,7 +2957,7 @@ function renderBoard() {
       cell.append(marker);
     }
 
-    if (index === bomberCell) {
+    if (bomberIndexByCell.has(index)) {
       const marker = document.createElement("span");
       marker.className = cageEaterActive ? "cage-eater-marker" : "bomber-marker";
       marker.setAttribute("aria-hidden", "true");
@@ -3923,8 +3933,24 @@ function showRogueRewardDialog() {
   rogueRunProgress.textContent = isInitial
     ? t("rogueInitialPower")
     : t("rogueStageClear", { current: rogueRunStage });
-  const currentAbilityLabels = rogueAbilitySummaryLabels();
-  rogueCurrentAbilities.innerHTML = `<strong>${t("rogueAbilities")}</strong><div>${currentAbilityLabels.map((label) => `<span>${label}</span>`).join("") || `<span>${t("rogueNoAbilities")}</span>`}</div>`;
+  const currentAbilityEntries = rogueAbilitySummaryEntries();
+  rogueCurrentAbilities.innerHTML = `<strong>${t("rogueAbilities")}</strong><div></div><p class="rogue-current-ability-detail" hidden></p>`;
+  const currentAbilityList = rogueCurrentAbilities.querySelector("div");
+  if (currentAbilityEntries.length) {
+    currentAbilityEntries.forEach((entry) => {
+      const button = document.createElement("button");
+      button.className = "rogue-current-ability-chip";
+      button.type = "button";
+      button.textContent = entry.label;
+      button.dataset.abilityHelp = entry.help;
+      button.setAttribute("aria-label", `${entry.label} ${entry.help}`);
+      currentAbilityList.append(button);
+    });
+  } else {
+    const empty = document.createElement("span");
+    empty.textContent = t("rogueNoAbilities");
+    currentAbilityList.append(empty);
+  }
   renderRogueNextPreview(isInitial);
   rogueRewardList.innerHTML = "";
   rewards.forEach((ability) => {
@@ -4311,67 +4337,109 @@ function bomberAvoidCells() {
   return new Set([...patrolCells, ...patrolBlockedCellsFor(patrolCells)]);
 }
 
-function canBomberOccupy(index, avoidCells = bomberAvoidCells()) {
+function bomberTargetCount() {
+  if (!isRogueRunMode()) return 1;
+  const gimmick = isCageEaterMode() ? "cageEater" : "bomber";
+  return Math.max(1, rogueGimmickCount(gimmick));
+}
+
+function canBomberOccupy(index, avoidCells = bomberAvoidCells(), occupied = new Set()) {
   if (!isBomberLikeMode() || puzzle[index] !== EMPTY || entries[index] !== EMPTY) return false;
-  if (avoidCells.has(index)) return false;
+  if (avoidCells.has(index) || occupied.has(index)) return false;
   const openCells = entries.filter((value, cell) => puzzle[cell] === EMPTY && value === EMPTY).length;
   return openCells > 1;
 }
 
-function normalizeBomberStep() {
-  if (!isBomberLikeMode() || !bomberRoute.length) return null;
+function normalizeBomberStep(index, occupied = new Set()) {
+  if (!isBomberLikeMode() || !bomberRoute.length || bomberSteps[index] === undefined) return null;
   const avoidCells = bomberAvoidCells();
   for (let count = 0; count < bomberRoute.length; count += 1) {
-    const step = ((bomberStep % bomberRoute.length) + bomberRoute.length) % bomberRoute.length;
+    const step = ((bomberSteps[index] % bomberRoute.length) + bomberRoute.length) % bomberRoute.length;
     const cell = bomberRoute[step];
-    if (canBomberOccupy(cell, avoidCells)) {
-      bomberStep = step;
+    if (canBomberOccupy(cell, avoidCells, occupied)) {
+      bomberSteps[index] = step;
       return cell;
     }
-    bomberStep = (bomberStep + 1) % bomberRoute.length;
+    bomberSteps[index] = (bomberSteps[index] + 1) % bomberRoute.length;
   }
   return null;
 }
 
-function currentBomberCell() {
-  return normalizeBomberStep();
+function currentBomberCells() {
+  if (!isBomberLikeMode()) return [];
+  const occupied = new Set();
+  return bomberSteps.map((_, index) => {
+    const cell = normalizeBomberStep(index, occupied);
+    if (cell !== null) occupied.add(cell);
+    return cell;
+  });
 }
 
-function nextBomberCell() {
-  if (!isBomberLikeMode() || !bomberRoute.length) return null;
+function nextBomberCells() {
+  if (!isBomberLikeMode() || !bomberRoute.length) return [];
   const avoidCells = bomberAvoidCells();
-  for (let count = 1; count < bomberRoute.length; count += 1) {
-    const cell = bomberRoute[(bomberStep + count) % bomberRoute.length];
-    if (canBomberOccupy(cell, avoidCells)) return cell;
-  }
-  return null;
+  const currentCells = currentBomberCells();
+  const occupied = new Set(currentCells.filter((cell) => cell !== null));
+  return bomberSteps.map((step, index) => {
+    occupied.delete(currentCells[index]);
+    for (let count = 1; count < bomberRoute.length; count += 1) {
+      const cell = bomberRoute[(step + count) % bomberRoute.length];
+      if (!canBomberOccupy(cell, avoidCells, occupied)) continue;
+      occupied.add(cell);
+      return cell;
+    }
+    if (currentCells[index] !== null) occupied.add(currentCells[index]);
+    return null;
+  });
 }
 
 function setupBomber() {
   bomberRoute = [];
-  bomberStep = 0;
-  bomberHeat = 0;
+  bomberSteps = [];
+  bomberHeats = [];
   if (!isBomberLikeMode()) return;
   bomberRoute = makePatrolRoute();
   const avoidCells = bomberAvoidCells();
-  const firstOpen = bomberRoute.findIndex((cell) => canBomberOccupy(cell, avoidCells));
-  bomberStep = firstOpen >= 0 ? firstOpen : 0;
+  const occupied = new Set();
+  const targetCount = bomberTargetCount();
+  for (let bomber = 0; bomber < targetCount; bomber += 1) {
+    const start = Math.floor((bomberRoute.length / targetCount) * bomber);
+    let chosenStep = -1;
+    for (let offset = 0; offset < bomberRoute.length; offset += 1) {
+      const step = (start + offset) % bomberRoute.length;
+      const cell = bomberRoute[step];
+      if (!canBomberOccupy(cell, avoidCells, occupied)) continue;
+      chosenStep = step;
+      occupied.add(cell);
+      break;
+    }
+    if (chosenStep < 0) break;
+    bomberSteps.push(chosenStep);
+    bomberHeats.push(0);
+  }
 }
 
-function advanceBomber() {
-  if (!isBomberLikeMode() || !bomberRoute.length) return false;
-  const before = currentBomberCell();
-  if (before === null) return false;
+function advanceBombers() {
+  if (!isBomberLikeMode() || !bomberRoute.length || !bomberSteps.length) return false;
+  const before = currentBomberCells();
   const avoidCells = bomberAvoidCells();
-  for (let count = 0; count < bomberRoute.length; count += 1) {
-    bomberStep = (bomberStep + 1) % bomberRoute.length;
-    const cell = bomberRoute[bomberStep];
-    if (canBomberOccupy(cell, avoidCells)) {
-      if (cell !== before) flashEffect(cell, "effect-bomber", 500);
-      return cell !== before;
+  const occupied = new Set(before.filter((cell) => cell !== null));
+  let moved = false;
+  bomberSteps.forEach((step, index) => {
+    occupied.delete(before[index]);
+    for (let count = 0; count < bomberRoute.length; count += 1) {
+      bomberSteps[index] = (bomberSteps[index] + 1) % bomberRoute.length;
+      const cell = bomberRoute[bomberSteps[index]];
+      if (!canBomberOccupy(cell, avoidCells, occupied)) continue;
+      occupied.add(cell);
+      if (cell !== before[index]) {
+        moved = true;
+        flashEffect(cell, "effect-bomber", 500);
+      }
+      break;
     }
-  }
-  return false;
+  });
+  return moved;
 }
 
 function clearAroundEnemy(index) {
@@ -4424,41 +4492,44 @@ function mergeAdjacentCage(index) {
 
 function updateBomberAfterInput(inputCell) {
   if (!isBomberLikeMode()) return { clearedCells: [] };
-  const bomberCell = currentBomberCell();
-  if (bomberCell === null) return { clearedCells: [] };
-
-  if (surroundingCells(bomberCell).includes(inputCell)) {
-    bomberHeat = 0;
-    showComboToast(t(isCageEaterMode() ? "cageEaterCalmed" : "bomberDefused"), "combo-toast-normal");
-    advanceBomber();
-    return { clearedCells: [] };
-  }
-
-  bomberHeat += 1;
+  const bomberCells = currentBomberCells();
+  if (!bomberCells.some((cell) => cell !== null)) return { clearedCells: [] };
   const limit = isCageEaterMode()
     ? adventureRuleConfig("cageEater").eaterLimit || 4
     : adventureRuleConfig("bomber").bomberLimit || 4;
-  if (bomberHeat >= limit) {
+  const clearedCells = new Set();
+  let mergedCage = false;
+
+  bomberCells.forEach((bomberCell, index) => {
+    if (bomberCell === null) return;
+    if (surroundingCells(bomberCell).includes(inputCell)) {
+      bomberHeats[index] = 0;
+      showComboToast(t(isCageEaterMode() ? "cageEaterCalmed" : "bomberDefused"), "combo-toast-normal");
+      return;
+    }
+
+    bomberHeats[index] = (bomberHeats[index] || 0) + 1;
+    if (bomberHeats[index] < limit) return;
+
     if (isCageEaterMode()) {
       const mergedCells = mergeAdjacentCage(bomberCell);
-      bomberHeat = 0;
+      bomberHeats[index] = 0;
       flashEffect(bomberCell, "effect-cage-shift", 760);
       showComboToast(mergedCells
         ? t("cageEaterMerged", { n: mergedCells.length })
         : t("cageEaterNoTarget"), "combo-toast-lg");
-      advanceBomber();
-      return { clearedCells: [], mergedCage: Boolean(mergedCells) };
+      mergedCage = mergedCage || Boolean(mergedCells);
+      return;
     }
     const cleared = clearAroundEnemy(bomberCell);
-    bomberHeat = 0;
+    bomberHeats[index] = 0;
+    cleared.forEach((cell) => clearedCells.add(cell));
     flashEffect(bomberCell, "effect-mine", 700);
     showComboToast(t("bomberExploded", { n: cleared.length }), comboLevel(cleared.length));
-    advanceBomber();
-    return { clearedCells: cleared };
-  }
+  });
 
-  advanceBomber();
-  return { clearedCells: [] };
+  advanceBombers();
+  return { clearedCells: [...clearedCells], mergedCage };
 }
 
 function setupSleeper() {
@@ -4658,8 +4729,8 @@ function snapshotState() {
     noteMode,
     patrolSteps: [...patrolSteps],
     bomberRoute: [...bomberRoute],
-    bomberStep,
-    bomberHeat,
+    bomberSteps: [...bomberSteps],
+    bomberHeats: [...bomberHeats],
     numberClimbMinimum,
     sleeperCells: [...sleeperCells],
     sleeperBlockedCells: new Set(sleeperBlockedCells),
@@ -4693,8 +4764,8 @@ function restoreSnapshot(snapshot) {
   noteMode = snapshot.noteMode;
   patrolSteps = [...(snapshot.patrolSteps || [])];
   bomberRoute = [...(snapshot.bomberRoute || [])];
-  bomberStep = snapshot.bomberStep || 0;
-  bomberHeat = snapshot.bomberHeat || 0;
+  bomberSteps = [...(snapshot.bomberSteps || (snapshot.bomberStep !== undefined ? [snapshot.bomberStep] : []))];
+  bomberHeats = [...(snapshot.bomberHeats || (snapshot.bomberHeat !== undefined ? [snapshot.bomberHeat] : []))];
   numberClimbMinimum = snapshot.numberClimbMinimum || 1;
   sleeperCells = [...(snapshot.sleeperCells || (snapshot.sleeperCell !== undefined && snapshot.sleeperCell !== null ? [snapshot.sleeperCell] : []))];
   sleeperBlockedCells = new Set(snapshot.sleeperBlockedCells || []);
@@ -4737,8 +4808,8 @@ function sealItemEffectsInLastUndo(inputCell, scoreBeforeInput, streakBeforeInpu
     entry.mineNotes = new Set(mineNotes);
     entry.patrolSteps = [...patrolSteps];
     entry.bomberRoute = [...bomberRoute];
-    entry.bomberStep = bomberStep;
-    entry.bomberHeat = bomberHeat;
+    entry.bomberSteps = [...bomberSteps];
+    entry.bomberHeats = [...bomberHeats];
     entry.sleeperCells = [...sleeperCells];
     entry.sleeperBlockedCells = new Set(sleeperBlockedCells);
     entry.sleeperBlockedTurns = new Map(sleeperBlockedTurns);
@@ -4752,6 +4823,7 @@ function sealItemEffectsInLastUndo(inputCell, scoreBeforeInput, streakBeforeInpu
     entry.strikerCell = strikerCell;
     entry.strikerDirection = strikerDirection ? { ...strikerDirection } : null;
     entry.strikerStunRemainingMs = currentStrikerStunRemaining();
+    if (effect.numberClimbReset) entry.numberClimbMinimum = 1;
     clearedCells.forEach((cell) => {
       entry.entries[cell] = EMPTY;
     });
@@ -4771,8 +4843,8 @@ function sealItemEffectsInLastUndo(inputCell, scoreBeforeInput, streakBeforeInpu
   snapshot.mineNotes = new Set(mineNotes);
   snapshot.patrolSteps = [...patrolSteps];
   snapshot.bomberRoute = [...bomberRoute];
-  snapshot.bomberStep = bomberStep;
-  snapshot.bomberHeat = bomberHeat;
+  snapshot.bomberSteps = [...bomberSteps];
+  snapshot.bomberHeats = [...bomberHeats];
   snapshot.sleeperCells = [...sleeperCells];
   snapshot.sleeperBlockedCells = new Set(sleeperBlockedCells);
   snapshot.sleeperBlockedTurns = new Map(sleeperBlockedTurns);
@@ -4786,6 +4858,7 @@ function sealItemEffectsInLastUndo(inputCell, scoreBeforeInput, streakBeforeInpu
   snapshot.strikerCell = strikerCell;
   snapshot.strikerDirection = strikerDirection ? { ...strikerDirection } : null;
   snapshot.strikerStunRemainingMs = currentStrikerStunRemaining();
+  if (effect.numberClimbReset) snapshot.numberClimbMinimum = 1;
   snapshot.score = Math.max(scoreBeforeInput, score - inputPoints);
   snapshot.streak = streakBeforeInput;
   snapshot.activeNumber = null;
@@ -4898,7 +4971,7 @@ function enterNumber(number) {
     return;
   }
 
-  if (selected === currentBomberCell()) {
+  if (currentBomberCells().includes(selected)) {
     message(t(isCageEaterMode() ? "cageEaterBlocked" : "bomberBlocked"));
     flashEffect(selected, "effect-bomber-blocked", 500);
     render();
@@ -4979,6 +5052,10 @@ function enterNumber(number) {
   }
   const triggeredItem = triggerItem(selected);
   advanceNumberClimb(number, numberClimbReset);
+  if (triggeredItem?.numberClimbReset) {
+    numberClimbMinimum = 1;
+    showComboToast(t("numberClimbMineReset"), "combo-toast-lg");
+  }
   const bomberEffect = updateBomberAfterInput(selected);
   updateSleeperAfterInput(selected);
   clearSolvedJammerCages(true);
@@ -5002,6 +5079,7 @@ function enterNumber(number) {
   if (triggeredItem || shiftedCages || bomberEffect.clearedCells.length || bomberEffect.mergedCage) {
     sealItemEffectsInLastUndo(selected, scoreBeforeInput, streakBeforeInput, points, {
       clearedCells: [...(triggeredItem?.clearedCells || []), ...bomberEffect.clearedCells],
+      numberClimbReset: Boolean(triggeredItem?.numberClimbReset),
     });
   }
   if (won) {
@@ -5031,7 +5109,7 @@ function handleMistake() {
 function triggerItem(index) {
   const item = items.get(index);
   if (!item || usedItems.has(index)) return null;
-  const result = { type: item, clearedCells: [] };
+  const result = { type: item, clearedCells: [], numberClimbReset: false };
   usedItems.add(index);
   flashEffect(index, `effect-${item}`, 700);
 
@@ -5042,6 +5120,7 @@ function triggerItem(index) {
       showComboToast(t("rogueMineBlocked"), "combo-toast-lg");
       return result;
     }
+    result.numberClimbReset = isNumberClimbMode();
     const blastCells = hasRogueAbility("mineCross") ? orthogonalCells(index) : surroundingCells(index);
     const cleared = blastCells.filter((cell) => (
       entries[cell] !== EMPTY && (isSameBlock(cell, index) || !isCompletedBlock(cell))
@@ -5592,8 +5671,8 @@ function saveInitialState() {
     patrolRoute: [...patrolRoute],
     patrolSteps: [...patrolSteps],
     bomberRoute: [...bomberRoute],
-    bomberStep,
-    bomberHeat,
+    bomberSteps: [...bomberSteps],
+    bomberHeats: [...bomberHeats],
     numberClimbMinimum,
     sleeperCells: [...sleeperCells],
     sleeperBlockedCells: new Set(sleeperBlockedCells),
@@ -5641,8 +5720,8 @@ function retryGame() {
   patrolRoute = [...(initialState.patrolRoute || [])];
   patrolSteps = [...(initialState.patrolSteps || [])];
   bomberRoute = [...(initialState.bomberRoute || [])];
-  bomberStep = initialState.bomberStep || 0;
-  bomberHeat = initialState.bomberHeat || 0;
+  bomberSteps = [...(initialState.bomberSteps || (initialState.bomberStep !== undefined ? [initialState.bomberStep] : []))];
+  bomberHeats = [...(initialState.bomberHeats || (initialState.bomberHeat !== undefined ? [initialState.bomberHeat] : []))];
   numberClimbMinimum = initialState.numberClimbMinimum || 1;
   sleeperCells = [...(initialState.sleeperCells || (initialState.sleeperCell !== undefined && initialState.sleeperCell !== null ? [initialState.sleeperCell] : []))];
   sleeperBlockedCells = new Set(initialState.sleeperBlockedCells || []);
@@ -5749,8 +5828,8 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     patrolRoute = [];
     patrolSteps = [];
     bomberRoute = [];
-    bomberStep = 0;
-    bomberHeat = 0;
+    bomberSteps = [];
+    bomberHeats = [];
     numberClimbMinimum = 1;
     sleeperCells = [];
     sleeperBlockedCells = new Set();
@@ -5800,12 +5879,12 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     setupStriker();
     const patrolCells = currentPatrolCells();
     const patrolBlockedCells = patrolBlockedCellsFor(patrolCells);
-    const bomberCell = currentBomberCell();
+    const bomberCells = currentBomberCells();
     const blockedChaserCell = currentChaserCell();
-    if (patrolBlockedCells.includes(selected) || selected === bomberCell || selected === blockedChaserCell || sleeperCells.includes(selected) || isSleeperBlockedCell(selected) || isJammerCell(selected)) {
+    if (patrolBlockedCells.includes(selected) || bomberCells.includes(selected) || selected === blockedChaserCell || sleeperCells.includes(selected) || isSleeperBlockedCell(selected) || isJammerCell(selected)) {
       const blockedCells = new Set([
         ...patrolBlockedCells,
-        bomberCell,
+        ...bomberCells,
         blockedChaserCell,
         ...sleeperCells,
         ...sleeperBlockedCells,
@@ -5910,11 +5989,37 @@ dialogButton.addEventListener("click", () => {
 rogueRewardDialog.addEventListener("cancel", (event) => {
   event.preventDefault();
 });
+rogueRewardDialog.addEventListener("click", (event) => {
+  const chip = event.target.closest(".rogue-current-ability-chip");
+  if (!chip) return;
+  const detail = rogueCurrentAbilities.querySelector(".rogue-current-ability-detail");
+  if (!detail) return;
+  const shouldClose = chip.classList.contains("is-selected") && !detail.hidden;
+  rogueCurrentAbilities.querySelectorAll(".rogue-current-ability-chip").forEach((button) => {
+    button.classList.toggle("is-selected", !shouldClose && button === chip);
+  });
+  if (shouldClose) {
+    detail.textContent = "";
+    detail.hidden = true;
+    return;
+  }
+  detail.textContent = chip.dataset.abilityHelp || "";
+  detail.hidden = false;
+});
 rogueAbilityPanel.addEventListener("click", (event) => {
   const chip = event.target.closest(".rogue-ability-chip");
   if (!chip) return;
   const detail = rogueAbilityPanel.querySelector(".rogue-ability-detail");
   if (!detail) return;
+  const shouldClose = chip.classList.contains("is-selected") && !detail.hidden;
+  rogueAbilityPanel.querySelectorAll(".rogue-ability-chip").forEach((button) => {
+    button.classList.toggle("is-selected", !shouldClose && button === chip);
+  });
+  if (shouldClose) {
+    detail.textContent = "";
+    detail.hidden = true;
+    return;
+  }
   detail.textContent = chip.dataset.abilityHelp || "";
   detail.hidden = false;
 });
