@@ -4224,14 +4224,21 @@ function patrolGuardianTargetCount() {
   return adventureRuleConfig("patrol").guardianCount || PATROL_GUARDIAN_COUNT;
 }
 
+function canInputByNumberClimb(index) {
+  return !isNumberClimbMode() || solution[index] >= numberClimbMinimumAllowed();
+}
+
 function canPatrolOccupy(index, occupied = new Set()) {
   if (!isPatrolMode() || puzzle[index] !== EMPTY || entries[index] !== EMPTY || occupied.has(index)) return false;
   if (retirePatrolIfEndgame()) return false;
-  const openCells = entries.filter((value, cell) => puzzle[cell] === EMPTY && value === EMPTY).length;
   const blockedCells = new Set(occupied);
   cageCellsForCell(index).forEach((cell) => blockedCells.add(cell));
-  const blockedOpenCells = [...blockedCells].filter((cell) => puzzle[cell] === EMPTY && entries[cell] === EMPTY).length;
-  return openCells - blockedOpenCells > 0;
+  return entries.some((value, cell) => (
+    puzzle[cell] === EMPTY &&
+    value === EMPTY &&
+    !blockedCells.has(cell) &&
+    canInputByNumberClimb(cell)
+  ));
 }
 
 function patrolDirection(guardianIndex) {
