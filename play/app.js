@@ -1420,6 +1420,22 @@ function jammerMarkerCellFor(cageId) {
   return cage ? cageStartCell(cage) : null;
 }
 
+function normalizeJammersAfterCageChange() {
+  if (!isJammerMode() || !jammerCageIds.size) return;
+  const markerCells = [...jammerCellsByCage.values()].filter((cell) => (
+    cell !== undefined && puzzle[cell] === EMPTY && entries[cell] === EMPTY
+  ));
+  jammerCageIds = new Set();
+  jammerCellsByCage = new Map();
+  markerCells.forEach((cell) => {
+    const cageId = cellToCage.get(cell);
+    if (cageId === undefined || jammerCageIds.has(cageId)) return;
+    jammerCageIds.add(cageId);
+    jammerCellsByCage.set(cageId, cell);
+  });
+  clearSolvedJammerCages(false);
+}
+
 function clearSolvedJammerCages(showToast = true) {
   if (!isJammerMode() || !jammerCageIds.size) return false;
   let cleared = false;
@@ -4489,6 +4505,7 @@ function mergeAdjacentCage(index) {
   });
   cages = remaining.map((cage, cageId) => ({ ...cage, id: cageId }));
   buildCageLookups();
+  normalizeJammersAfterCageChange();
   flashCellsEffect(mergedCells, "effect-cage-shift", 760);
   return mergedCells;
 }
@@ -5245,6 +5262,7 @@ function maybeShiftCages(inputCell) {
 function changeCageLayout(profile = "normal") {
   cages = makeCages(profile);
   buildCageLookups();
+  normalizeJammersAfterCageChange();
   flashCellsEffect(emptyCells(), "effect-cage-shift", 520);
 }
 
