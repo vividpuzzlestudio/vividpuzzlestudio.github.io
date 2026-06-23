@@ -4212,7 +4212,10 @@ function canPatrolOccupy(index, occupied = new Set()) {
   if (!isPatrolMode() || puzzle[index] !== EMPTY || entries[index] !== EMPTY || occupied.has(index)) return false;
   if (retirePatrolIfEndgame()) return false;
   const openCells = entries.filter((value, cell) => puzzle[cell] === EMPTY && value === EMPTY).length;
-  return openCells > patrolGuardianTargetCount();
+  const blockedCells = new Set(occupied);
+  cageCellsForCell(index).forEach((cell) => blockedCells.add(cell));
+  const blockedOpenCells = [...blockedCells].filter((cell) => puzzle[cell] === EMPTY && entries[cell] === EMPTY).length;
+  return openCells - blockedOpenCells > 0;
 }
 
 function patrolDirection(guardianIndex) {
@@ -4347,7 +4350,7 @@ function canBomberOccupy(index, avoidCells = bomberAvoidCells(), occupied = new 
   if (!isBomberLikeMode() || puzzle[index] !== EMPTY || entries[index] !== EMPTY) return false;
   if (avoidCells.has(index) || occupied.has(index)) return false;
   const openCells = entries.filter((value, cell) => puzzle[cell] === EMPTY && value === EMPTY).length;
-  return openCells > 1;
+  return openCells - occupied.size > 1;
 }
 
 function normalizeBomberStep(index, occupied = new Set()) {
