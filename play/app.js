@@ -31,6 +31,7 @@ const ADVENTURE_STAGES = {
 };
 const PATROL_GUARDIAN_COUNT = 2;
 const SLEEPER_COUNT = 3;
+const NUMBER_CLIMB_FREE_INPUT_MS = 5000;
 const ITEM_TYPES = ["mine", "heart", "hint", "shuffle"];
 const LOCALE = (navigator.language || "").toLowerCase().startsWith("ja") ? "ja" : "en";
 const TEXT = {
@@ -127,7 +128,7 @@ const TEXT = {
       adventurePatrolHelp: "動く封鎖が出現 / 4分制限",
       adventureBomber: "ボマー",
       adventureBomberHelp: "放置すると爆発 / 5分制限",
-      adventureCageEater: "ケージイーター",
+      adventureCageEater: "ケージリンカー",
       adventureCageEaterHelp: "放置するとケージ融合 / 5分制限",
       adventureNumberClimb: "ナンバークライム",
       adventureNumberClimbHelp: "小さい数字から埋めろ / 5分制限",
@@ -136,6 +137,8 @@ const TEXT = {
       numberClimbBlocked: "今は {n} 以上の数字だけ入力できます。",
       numberClimbRestarted: "{n} 到達！ 1から再スタート",
       numberClimbMineReset: "地雷でリセット！ 次は1以上",
+      numberClimbFreeTitle: "自由入力中",
+      numberClimbFreeInput: "自由入力 {n}秒",
       adventureSleeper: "スリーパー",
       adventureSleeperHelp: "近くを埋めると周囲封鎖 / 5分制限",
       adventureJammer: "ジャマー",
@@ -232,12 +235,12 @@ const TEXT = {
       bomberBlocked: "このマスはボマーがいます。",
       bomberDefused: "ボマー鎮火！",
       bomberExploded: "ボマー爆発 {n}マス 消去！",
-      cageEaterBlocked: "このマスはケージイーターがいます。",
-      cageEaterCalmed: "ケージイーターを抑えた！",
+      cageEaterBlocked: "このマスはケージリンカーがいます。",
+      cageEaterCalmed: "ケージリンカーを抑えた！",
       cageEaterMerged: "ケージ融合！ {n}マスに巨大化！",
       cageEaterNoTarget: "融合できる隣接ケージなし！",
       sleeperBlocked: "このマスはスリーパーがいます。",
-      sleeperAwake: "スリーパー起床 周囲封鎖！",
+      sleeperAwake: "スリーパー起動 周囲封鎖！",
       sleeperReleased: "封鎖解除！",
       jammerCleared: "ジャマー解除！",
       jammerBlocked: "このマスはジャマーがいます。",
@@ -379,7 +382,7 @@ const TEXT = {
       adventurePatrolHelp: "Moving blockers appear / 4-minute limit",
       adventureBomber: "Bomber",
       adventureBomberHelp: "Explodes if ignored / 5-minute limit",
-      adventureCageEater: "Cage Eater",
+      adventureCageEater: "Cage Linker",
       adventureCageEaterHelp: "Merges cages if ignored / 5-minute limit",
       adventureNumberClimb: "Number Climb",
       adventureNumberClimbHelp: "Small numbers first / 5-minute limit",
@@ -388,6 +391,8 @@ const TEXT = {
       numberClimbBlocked: "Only numbers {n} or higher can be entered now.",
       numberClimbRestarted: "Reached {n}! Back to 1",
       numberClimbMineReset: "Mine reset! Next: 1 or higher",
+      numberClimbFreeTitle: "Free input",
+      numberClimbFreeInput: "Free input: {n}s",
       adventureSleeper: "Sleeper",
       adventureSleeperHelp: "Fill nearby cells to wake it / 5-minute limit",
       adventureJammer: "Jammer",
@@ -484,12 +489,12 @@ const TEXT = {
       bomberBlocked: "A bomber is on this cell.",
       bomberDefused: "Bomber cooled down!",
       bomberExploded: "Bomber cleared {n} cells!",
-      cageEaterBlocked: "The Cage Eater is on this cell.",
-      cageEaterCalmed: "Cage Eater calmed down!",
+      cageEaterBlocked: "The Cage Linker is on this cell.",
+      cageEaterCalmed: "Cage Linker calmed down!",
       cageEaterMerged: "Cages merged into {n} cells!",
       cageEaterNoTarget: "No adjacent cage can be merged!",
       sleeperBlocked: "A sleeper is on this cell.",
-      sleeperAwake: "Sleeper woke up and blocked nearby cells!",
+      sleeperAwake: "Sleeper activated and blocked nearby cells!",
       sleeperReleased: "Blocks released!",
       jammerCleared: "Jammer cleared!",
       jammerBlocked: "A jammer is on this cell.",
@@ -786,6 +791,7 @@ let bomberRoute = [];
 let bomberSteps = [];
 let bomberHeats = [];
 let numberClimbMinimum = 1;
+let numberClimbFreeUntilMs = 0;
 let sleeperCells = [];
 let sleeperBlockedCells = new Set();
 let sleeperBlockedTurns = new Map();
@@ -794,6 +800,7 @@ let jammerCageIds = new Set();
 let jammerCellsByCage = new Map();
 let chaserCell = null;
 let chaserPreviousCell = null;
+let chaserNextCell = null;
 let chaserRetired = false;
 let chaserIntervalId = null;
 let chaserStunnedUntil = 0;
@@ -1471,6 +1478,7 @@ function retireChaserIfEndgame() {
   if (chaserPlayableOpenCells().length > 2) return false;
   chaserCell = null;
   chaserPreviousCell = null;
+  chaserNextCell = null;
   chaserRetired = true;
   stopChaserTimer();
   return true;
@@ -1491,6 +1499,7 @@ function currentChaserCell() {
     const cells = chaserOpenCells().filter((cell) => cell !== selected);
     chaserCell = cells.length ? cells[0] : null;
     chaserPreviousCell = null;
+    chaserNextCell = null;
     retireChaserIfEndgame();
   }
   return chaserCell;
@@ -1518,9 +1527,7 @@ function chaserJumpCells(current) {
   });
 }
 
-function nextChaserCell() {
-  const current = currentChaserCell();
-  if (current === null || isChaserStunned()) return null;
+function chooseNextChaserCell(current) {
   const candidates = chaserJumpCells(current);
   if (!candidates.length) return null;
   const pool = candidates;
@@ -1534,9 +1541,19 @@ function nextChaserCell() {
   })[0];
 }
 
+function nextChaserCell() {
+  const current = currentChaserCell();
+  if (current === null || isChaserStunned()) return null;
+  const candidates = chaserJumpCells(current);
+  if (chaserNextCell !== null && candidates.includes(chaserNextCell)) return chaserNextCell;
+  chaserNextCell = chooseNextChaserCell(current);
+  return chaserNextCell;
+}
+
 function setupChaser() {
   chaserCell = null;
   chaserPreviousCell = null;
+  chaserNextCell = null;
   chaserRetired = false;
   chaserStunnedUntil = 0;
   chaserStunRemainingMs = 0;
@@ -1619,6 +1636,7 @@ function moveChaser() {
   if (next === null) return;
   chaserPreviousCell = before;
   chaserCell = next;
+  chaserNextCell = null;
   if (before !== next) flashEffect(next, "effect-chaser", 450);
   if (chaserCell === selected) {
     handleChaserHit();
@@ -4150,12 +4168,32 @@ function numberClimbResetNumber() {
   return 1;
 }
 
+function currentNumberClimbElapsedMs() {
+  return currentElapsedMs();
+}
+
+function numberClimbFreeRemainingMs() {
+  if (!isNumberClimbMode()) return 0;
+  return Math.max(0, numberClimbFreeUntilMs - currentNumberClimbElapsedMs());
+}
+
+function isNumberClimbFreeInputActive() {
+  return numberClimbFreeRemainingMs() > 0;
+}
+
+function activateNumberClimbFreeInput(durationMs = NUMBER_CLIMB_FREE_INPUT_MS) {
+  if (!isNumberClimbMode()) return;
+  numberClimbFreeUntilMs = Math.max(numberClimbFreeUntilMs, currentNumberClimbElapsedMs() + durationMs);
+}
+
 function numberClimbMinimumAllowed() {
+  if (isNumberClimbFreeInputActive()) return 1;
   return Math.max(1, numberClimbMinimum - 1);
 }
 
 function advanceNumberClimb(number, resetNumber) {
   if (!isNumberClimbMode()) return;
+  if (isNumberClimbFreeInputActive()) return;
   if (number < numberClimbMinimum) return;
   if (number >= resetNumber) {
     numberClimbMinimum = 1;
@@ -4172,6 +4210,9 @@ function renderNumberClimbPanel() {
   if (!visible) return;
   const resetNumber = numberClimbResetNumber();
   const displayMinimum = numberClimbMinimumAllowed();
+  const freeRemainingMs = numberClimbFreeRemainingMs();
+  const freeInputActive = freeRemainingMs > 0;
+  numberClimbPanel.classList.toggle("is-free-input", freeInputActive);
   const digits = Array.from({ length: 9 }, (_, index) => index + 1).map((number) => {
     const classes = ["number-climb-step"];
     if (number < displayMinimum) classes.push("is-locked");
@@ -4180,7 +4221,13 @@ function renderNumberClimbPanel() {
     if (solvedCountForNumber(number) >= SIZE) classes.push("is-complete");
     return `<span class="${classes.join(" ")}">${number}</span>`;
   }).join("");
-  numberClimbPanel.innerHTML = `<strong>${t("numberClimbNext", { n: displayMinimum })}</strong><div>${digits}</div><small>${t("numberClimbReset", { n: resetNumber })}</small>`;
+  const titleText = freeInputActive
+    ? t("numberClimbFreeTitle")
+    : t("numberClimbNext", { n: displayMinimum });
+  const statusText = freeInputActive
+    ? t("numberClimbFreeInput", { n: Math.ceil(freeRemainingMs / 1000) })
+    : t("numberClimbReset", { n: resetNumber });
+  numberClimbPanel.innerHTML = `<strong>${titleText}</strong><div>${digits}</div><small>${statusText}</small>`;
 }
 
 function isBomberLikeMode() {
@@ -4759,6 +4806,7 @@ function snapshotState() {
     bomberSteps: [...bomberSteps],
     bomberHeats: [...bomberHeats],
     numberClimbMinimum,
+    numberClimbFreeUntilMs,
     sleeperCells: [...sleeperCells],
     sleeperBlockedCells: new Set(sleeperBlockedCells),
     sleeperBlockedTurns: new Map(sleeperBlockedTurns),
@@ -4767,6 +4815,7 @@ function snapshotState() {
     jammerCellsByCage: new Map(jammerCellsByCage),
     chaserCell,
     chaserPreviousCell,
+    chaserNextCell,
     chaserRetired,
     chaserStunRemainingMs: currentChaserStunRemaining(),
     strikerCell,
@@ -4794,6 +4843,7 @@ function restoreSnapshot(snapshot) {
   bomberSteps = [...(snapshot.bomberSteps || (snapshot.bomberStep !== undefined ? [snapshot.bomberStep] : []))];
   bomberHeats = [...(snapshot.bomberHeats || (snapshot.bomberHeat !== undefined ? [snapshot.bomberHeat] : []))];
   numberClimbMinimum = snapshot.numberClimbMinimum || 1;
+  numberClimbFreeUntilMs = snapshot.numberClimbFreeUntilMs || 0;
   sleeperCells = [...(snapshot.sleeperCells || (snapshot.sleeperCell !== undefined && snapshot.sleeperCell !== null ? [snapshot.sleeperCell] : []))];
   sleeperBlockedCells = new Set(snapshot.sleeperBlockedCells || []);
   sleeperBlockedTurns = new Map(snapshot.sleeperBlockedTurns || [...sleeperBlockedCells].map((cell) => [cell, snapshot.sleeperBlockTurns || 0]));
@@ -4802,6 +4852,7 @@ function restoreSnapshot(snapshot) {
   jammerCellsByCage = new Map(snapshot.jammerCellsByCage || []);
   chaserCell = snapshot.chaserCell ?? null;
   chaserPreviousCell = snapshot.chaserPreviousCell ?? null;
+  chaserNextCell = snapshot.chaserNextCell ?? null;
   chaserRetired = Boolean(snapshot.chaserRetired);
   chaserStunRemainingMs = snapshot.chaserStunRemainingMs || 0;
   chaserStunnedUntil = chaserStunRemainingMs > 0 ? Date.now() + chaserStunRemainingMs : 0;
@@ -4837,6 +4888,7 @@ function sealItemEffectsInLastUndo(inputCell, scoreBeforeInput, streakBeforeInpu
     entry.bomberRoute = [...bomberRoute];
     entry.bomberSteps = [...bomberSteps];
     entry.bomberHeats = [...bomberHeats];
+    entry.numberClimbFreeUntilMs = numberClimbFreeUntilMs;
     entry.sleeperCells = [...sleeperCells];
     entry.sleeperBlockedCells = new Set(sleeperBlockedCells);
     entry.sleeperBlockedTurns = new Map(sleeperBlockedTurns);
@@ -4845,12 +4897,16 @@ function sealItemEffectsInLastUndo(inputCell, scoreBeforeInput, streakBeforeInpu
     entry.jammerCellsByCage = new Map(jammerCellsByCage);
     entry.chaserCell = chaserCell;
     entry.chaserPreviousCell = chaserPreviousCell;
+    entry.chaserNextCell = chaserNextCell;
     entry.chaserRetired = chaserRetired;
     entry.chaserStunRemainingMs = currentChaserStunRemaining();
     entry.strikerCell = strikerCell;
     entry.strikerDirection = strikerDirection ? { ...strikerDirection } : null;
     entry.strikerStunRemainingMs = currentStrikerStunRemaining();
-    if (effect.numberClimbReset) entry.numberClimbMinimum = 1;
+    if (effect.numberClimbReset) {
+      entry.numberClimbMinimum = 1;
+      entry.numberClimbFreeUntilMs = numberClimbFreeUntilMs;
+    }
     clearedCells.forEach((cell) => {
       entry.entries[cell] = EMPTY;
     });
@@ -4872,6 +4928,7 @@ function sealItemEffectsInLastUndo(inputCell, scoreBeforeInput, streakBeforeInpu
   snapshot.bomberRoute = [...bomberRoute];
   snapshot.bomberSteps = [...bomberSteps];
   snapshot.bomberHeats = [...bomberHeats];
+  snapshot.numberClimbFreeUntilMs = numberClimbFreeUntilMs;
   snapshot.sleeperCells = [...sleeperCells];
   snapshot.sleeperBlockedCells = new Set(sleeperBlockedCells);
   snapshot.sleeperBlockedTurns = new Map(sleeperBlockedTurns);
@@ -4880,12 +4937,16 @@ function sealItemEffectsInLastUndo(inputCell, scoreBeforeInput, streakBeforeInpu
   snapshot.jammerCellsByCage = new Map(jammerCellsByCage);
   snapshot.chaserCell = chaserCell;
   snapshot.chaserPreviousCell = chaserPreviousCell;
+  snapshot.chaserNextCell = chaserNextCell;
   snapshot.chaserRetired = chaserRetired;
   snapshot.chaserStunRemainingMs = currentChaserStunRemaining();
   snapshot.strikerCell = strikerCell;
   snapshot.strikerDirection = strikerDirection ? { ...strikerDirection } : null;
   snapshot.strikerStunRemainingMs = currentStrikerStunRemaining();
-  if (effect.numberClimbReset) snapshot.numberClimbMinimum = 1;
+  if (effect.numberClimbReset) {
+    snapshot.numberClimbMinimum = 1;
+    snapshot.numberClimbFreeUntilMs = numberClimbFreeUntilMs;
+  }
   snapshot.score = Math.max(scoreBeforeInput, score - inputPoints);
   snapshot.streak = streakBeforeInput;
   snapshot.activeNumber = null;
@@ -5081,6 +5142,7 @@ function enterNumber(number) {
   advanceNumberClimb(number, numberClimbReset);
   if (triggeredItem?.numberClimbReset) {
     numberClimbMinimum = 1;
+    activateNumberClimbFreeInput();
     showComboToast(t("numberClimbMineReset"), "combo-toast-lg");
   }
   const bomberEffect = updateBomberAfterInput(selected);
@@ -5438,6 +5500,7 @@ function timerDisplayText() {
 
 function updateTimerTick() {
   timerEl.textContent = timerDisplayText();
+  if (isNumberClimbMode()) renderNumberClimbPanel();
   if (adventureTimeLimitMs && currentElapsedMs() >= adventureTimeLimitMs && !over) {
     finish(false, { reason: "timeUp" });
     return;
@@ -5702,6 +5765,7 @@ function saveInitialState() {
     bomberSteps: [...bomberSteps],
     bomberHeats: [...bomberHeats],
     numberClimbMinimum,
+    numberClimbFreeUntilMs,
     sleeperCells: [...sleeperCells],
     sleeperBlockedCells: new Set(sleeperBlockedCells),
     sleeperBlockedTurns: new Map(sleeperBlockedTurns),
@@ -5710,6 +5774,7 @@ function saveInitialState() {
     jammerCellsByCage: new Map(jammerCellsByCage),
     chaserCell,
     chaserPreviousCell,
+    chaserNextCell,
     chaserRetired,
     chaserStunRemainingMs: currentChaserStunRemaining(),
     strikerCell,
@@ -5751,6 +5816,7 @@ function retryGame() {
   bomberSteps = [...(initialState.bomberSteps || (initialState.bomberStep !== undefined ? [initialState.bomberStep] : []))];
   bomberHeats = [...(initialState.bomberHeats || (initialState.bomberHeat !== undefined ? [initialState.bomberHeat] : []))];
   numberClimbMinimum = initialState.numberClimbMinimum || 1;
+  numberClimbFreeUntilMs = initialState.numberClimbFreeUntilMs || 0;
   sleeperCells = [...(initialState.sleeperCells || (initialState.sleeperCell !== undefined && initialState.sleeperCell !== null ? [initialState.sleeperCell] : []))];
   sleeperBlockedCells = new Set(initialState.sleeperBlockedCells || []);
   sleeperBlockedTurns = new Map(initialState.sleeperBlockedTurns || [...sleeperBlockedCells].map((cell) => [cell, initialState.sleeperBlockTurns || 0]));
@@ -5759,6 +5825,7 @@ function retryGame() {
   jammerCellsByCage = new Map(initialState.jammerCellsByCage || []);
   chaserCell = initialState.chaserCell ?? null;
   chaserPreviousCell = initialState.chaserPreviousCell ?? null;
+  chaserNextCell = initialState.chaserNextCell ?? null;
   chaserRetired = Boolean(initialState.chaserRetired);
   chaserStunRemainingMs = initialState.chaserStunRemainingMs || 0;
   chaserStunnedUntil = chaserStunRemainingMs > 0 ? Date.now() + chaserStunRemainingMs : 0;
@@ -5859,6 +5926,7 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     bomberSteps = [];
     bomberHeats = [];
     numberClimbMinimum = 1;
+    numberClimbFreeUntilMs = 0;
     sleeperCells = [];
     sleeperBlockedCells = new Set();
     sleeperBlockedTurns = new Map();
@@ -5867,6 +5935,7 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     jammerCellsByCage = new Map();
     chaserCell = null;
     chaserPreviousCell = null;
+    chaserNextCell = null;
     chaserRetired = false;
     chaserStunnedUntil = 0;
     chaserStunRemainingMs = 0;

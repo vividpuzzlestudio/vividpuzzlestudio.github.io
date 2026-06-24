@@ -181,6 +181,14 @@ h1.title-ja {
   box-shadow: 0 4px 12px rgba(32, 37, 43, .07);
 }
 
+.number-climb-panel.is-free-input {
+  border-color: #d85a28;
+  background: linear-gradient(135deg, #fff1d5, #ffe3dc);
+  box-shadow:
+    0 0 0 1px rgba(216, 90, 40, .2),
+    0 4px 12px rgba(92, 38, 28, .12);
+}
+
 .number-climb-panel[hidden] {
   display: none;
 }
@@ -252,6 +260,11 @@ h1.title-ja {
   color: #6a6258;
 }
 
+.number-climb-panel.is-free-input strong,
+.number-climb-panel.is-free-input small {
+  color: #a33a25;
+}
+
 .number-climb-panel div {
   display: grid;
   grid-template-columns: repeat(9, minmax(0, 1fr));
@@ -287,6 +300,23 @@ h1.title-ja {
 .number-climb-step.is-reset {
   border-color: #d46a20;
   box-shadow: inset 0 0 0 1px #d46a20;
+}
+
+.number-climb-panel.is-free-input .number-climb-step {
+  border-color: #d85a28;
+  background: #fffdfa;
+  color: #9b3825;
+}
+
+.number-climb-panel.is-free-input .number-climb-step.is-locked,
+.number-climb-panel.is-free-input .number-climb-step.is-complete {
+  opacity: .58;
+}
+
+.number-climb-panel.is-free-input .number-climb-step.is-next {
+  background: #d85a28;
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(109, 35, 20, .2);
 }
 
 .rogue-ability-panel strong,
@@ -803,7 +833,7 @@ h1.title-ja {
 }
 
 .cell.cage-eater-defuse-zone {
-  box-shadow: inset 0 0 0 4px rgba(54, 155, 119, .46);
+  box-shadow: inset 0 0 0 4px rgba(194, 137, 37, .48);
 }
 
 .cell.cage-eater-defuse-zone::before {
@@ -814,8 +844,8 @@ h1.title-ja {
   z-index: 5;
   width: 24px;
   height: 24px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cg fill='none' stroke='%232d9b75' stroke-width='3' stroke-linecap='round'%3E%3Crect x='3' y='7' width='10' height='16' rx='3'/%3E%3Crect x='17' y='7' width='10' height='16' rx='3'/%3E%3Cpath d='M11 15h8'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
-  filter: drop-shadow(0 2px 2px rgba(32, 38, 45, .18));
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='24' r='4.2' fill='%23fff8db' stroke='%23244f58' stroke-width='2.6'/%3E%3Ccircle cx='24.5' cy='24' r='4.2' fill='%23fff8db' stroke='%23244f58' stroke-width='2.6'/%3E%3Cpath d='M13 21 26 8M21 21 8 8' stroke='%23244f58' stroke-width='3.2'/%3E%3Cpath d='M17 16.7 19.4 19.1' stroke='%23c28925' stroke-width='2.4'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+  filter: drop-shadow(0 1px 1px rgba(32, 38, 45, .18));
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
@@ -947,9 +977,9 @@ h1.title-ja {
   left: 50%;
   top: 50%;
   z-index: 9;
-  width: 34px;
-  height: 34px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 42 42'%3E%3Cpath d='M7 7c7-5 21-5 28 1 6 6 5 20-1 27-7 6-21 5-27-1C1 27 1 14 7 7Z' fill='%238b5bb5' stroke='%234f2d72' stroke-width='3'/%3E%3Ccircle cx='14' cy='15' r='3' fill='%23fff7d6'/%3E%3Ccircle cx='28' cy='15' r='3' fill='%23fff7d6'/%3E%3Cpath d='M10 25c6 8 16 8 22 0' fill='%23292131' stroke='%234f2d72' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='m14 26 3 5 3-4 3 4 4-5' fill='%23fff7d6'/%3E%3Cpath d='M5 10h8M29 10h8M21 4v7' stroke='%23d9bff0' stroke-width='2' opacity='.75'/%3E%3C/svg%3E") center / contain no-repeat;
+  width: 30px;
+  height: 30px;
+  background: url("./assets/enemies/cage-eater.svg") center / contain no-repeat;
   filter: drop-shadow(0 2px 2px rgba(32, 38, 45, .25));
   transform: translate(-50%, -50%);
   pointer-events: none;
@@ -1050,39 +1080,19 @@ h1.title-ja {
   left: 50%;
   top: 50%;
   z-index: 9;
-  width: 21px;
-  height: 17px;
-  border: 2px solid #6b58a8;
-  border-radius: 50% 50% 46% 46%;
-  background:
-    radial-gradient(circle at 34% 45%, #2f2f38 0 1.6px, transparent 2.6px),
-    radial-gradient(circle at 66% 45%, #2f2f38 0 1.6px, transparent 2.6px),
-    linear-gradient(180deg, #ede7ff 0%, #bcaee8 100%);
+  width: 30px;
+  height: 30px;
+  background: url("./assets/enemies/sleeper.svg") center / contain no-repeat;
   filter: drop-shadow(0 2px 2px rgba(32, 38, 45, .2));
   transform: translate(-50%, -50%);
 }
 
 .sleeper-marker::before {
-  content: "Z";
-  position: absolute;
-  right: -4px;
-  top: -8px;
-  color: #6b58a8;
-  font-size: 8px;
-  font-weight: 900;
-  line-height: 1;
+  display: none;
 }
 
 .sleeper-marker::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: 3px;
-  width: 7px;
-  height: 3px;
-  border-bottom: 2px solid #6b58a8;
-  border-radius: 0 0 10px 10px;
-  transform: translateX(-50%);
+  display: none;
 }
 
 .player-marker {
