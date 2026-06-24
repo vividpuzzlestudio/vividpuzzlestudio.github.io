@@ -1441,6 +1441,7 @@ function normalizeJammersAfterCageChange() {
     jammerCellsByCage.set(cageId, cell);
   });
   clearSolvedJammerCages(false);
+  releaseJammersIfBlockingAll(false);
 }
 
 function clearSolvedJammerCages(showToast = true) {
@@ -1453,6 +1454,7 @@ function clearSolvedJammerCages(showToast = true) {
       cleared = true;
     }
   });
+  if (!cleared) cleared = releaseJammersIfBlockingAll(false);
   if (cleared && showToast) showComboToast(t("jammerCleared"), "combo-toast-normal");
   return cleared;
 }
@@ -1475,7 +1477,9 @@ function chaserPlayableOpenCells() {
 
 function retireChaserIfEndgame() {
   if (!isChaserMode() || chaserRetired || chaserCell === null) return false;
-  if (chaserPlayableOpenCells().length > 2) return false;
+  const blockedCells = addCurrentInputBlockers(new Set(), { includeChaser: false });
+  if (chaserCell !== null) blockedCells.add(chaserCell);
+  if (inputOpenCellCount(blockedCells) > 2) return false;
   chaserCell = null;
   chaserPreviousCell = null;
   chaserNextCell = null;
@@ -4275,17 +4279,97 @@ function canInputByNumberClimb(index) {
   return !isNumberClimbMode() || solution[index] >= numberClimbMinimumAllowed();
 }
 
+function rawBomberCells() {
+  if (!isBomberLikeMode() || !bomberRoute.length) return [];
+  return bomberSteps.map((step) => {
+    const normalized = ((step % bomberRoute.length) + bomberRoute.length) % bomberRoute.length;
+    return bomberRoute[normalized];
+  }).filter((cell) => cell !== undefined && puzzle[cell] === EMPTY && entries[cell] === EMPTY);
+}
+
+function addCurrentInputBlockers(blockedCells, options = {}) {
+  const {
+    includePatrol = true,
+    includeBombers = true,
+    includeSleepers = true,
+    includeJammers = true,
+    includeChaser = true,
+  } = options;
+  if (includePatrol) patrolBlockedCellsFor().forEach((cell) => blockedCells.add(cell));
+  if (includeBombers) rawBomberCells().forEach((cell) => blockedCells.add(cell));
+  if (includeSleepers) {
+    sleeperCells.forEach((cell) => blockedCells.add(cell));
+    sleeperBlockedCells.forEach((cell) => blockedCells.add(cell));
+  }
+  if (includeJammers) [...jammerCellsByCage.values()].forEach((cell) => blockedCells.add(cell));
+  if (includeChaser && isChaserMode() && !chaserRetired && chaserCell !== null && puzzle[chaserCell] === EMPTY && entries[chaserCell] === EMPTY) {
+    blockedCells.add(chaserCell);
+  }
+  return blockedCells;
+}
+
+function playableOpenCells(blockedCells = new Set()) {
+  return entries
+    .map((value, cell) => ({ value, cell }))
+    .filter(({ value, cell }) => (
+      puzzle[cell] === EMPTY &&
+      value === EMPTY &&
+      !blockedCells.has(cell) &&
+      canInputByNumberClimb(cell)
+    ))
+    .map(({ cell }) => cell);
+}
+
+function hasPlayableOpenCell(blockedCells = new Set()) {
+  return playableOpenCells(blockedCells).length > 0;
+}
+
+function addNonPatrolInputBlockers(blockedCells) {
+  rawBomberCells().forEach((cell) => blockedCells.add(cell));
+  sleeperCells.forEach((cell) => blockedCells.add(cell));
+  sleeperBlockedCells.forEach((cell) => blockedCells.add(cell));
+  [...jammerCellsByCage.values()].forEach((cell) => blockedCells.add(cell));
+  if (isChaserMode() && !chaserRetired && chaserCell !== null && puzzle[chaserCell] === EMPTY && entries[chaserCell] === EMPTY) {
+    blockedCells.add(chaserCell);
+  }
+  return blockedCells;
+}
+
+function inputOpenCellCount(blockedCells = new Set()) {
+  return playableOpenCells(blockedCells).length;
+}
+
+function hasOpenCellIgnoringCurrentJammers() {
+  const blockedCells = addCurrentInputBlockers(new Set(), { includeJammers: false });
+  return hasPlayableOpenCell(blockedCells);
+}
+
+function releaseJammersIfBlockingAll(showToast = true) {
+  if (!isJammerMode() || !jammerCageIds.size) return false;
+  const blockedCells = addCurrentInputBlockers(new Set());
+  if (hasPlayableOpenCell(blockedCells) || !hasOpenCellIgnoringCurrentJammers()) return false;
+  jammerCageIds = new Set();
+  jammerCellsByCage = new Map();
+  if (showToast) showComboToast(t("jammerCleared"), "combo-toast-normal");
+  return true;
+}
+
+function isPlayableOpenCell(cell, blockedCells = new Set()) {
+  return (
+    puzzle[cell] === EMPTY &&
+    entries[cell] === EMPTY &&
+    !blockedCells.has(cell) &&
+    canInputByNumberClimb(cell)
+  );
+}
+
 function canPatrolOccupy(index, occupied = new Set()) {
   if (!isPatrolMode() || puzzle[index] !== EMPTY || entries[index] !== EMPTY || occupied.has(index)) return false;
   if (retirePatrolIfEndgame()) return false;
   const blockedCells = new Set(occupied);
   cageCellsForCell(index).forEach((cell) => blockedCells.add(cell));
-  return entries.some((value, cell) => (
-    puzzle[cell] === EMPTY &&
-    value === EMPTY &&
-    !blockedCells.has(cell) &&
-    canInputByNumberClimb(cell)
-  ));
+  addNonPatrolInputBlockers(blockedCells);
+  return hasPlayableOpenCell(blockedCells);
 }
 
 function patrolDirection(guardianIndex) {
@@ -4419,8 +4503,9 @@ function bomberTargetCount() {
 function canBomberOccupy(index, avoidCells = bomberAvoidCells(), occupied = new Set()) {
   if (!isBomberLikeMode() || puzzle[index] !== EMPTY || entries[index] !== EMPTY) return false;
   if (avoidCells.has(index) || occupied.has(index)) return false;
-  const openCells = entries.filter((value, cell) => puzzle[cell] === EMPTY && value === EMPTY).length;
-  return openCells - occupied.size > 1;
+  const blockedCells = new Set([...avoidCells, ...occupied, index]);
+  addCurrentInputBlockers(blockedCells, { includePatrol: false, includeBombers: false });
+  return hasPlayableOpenCell(blockedCells);
 }
 
 function normalizeBomberStep(index, occupied = new Set()) {
@@ -4642,23 +4727,21 @@ function normalizeSleeperBlocks() {
   )));
   sleeperBlockedCells = new Set(sleeperBlockedTurns.keys());
   const sleeperSet = new Set(sleeperCells);
-  const emptyCellsRemaining = entries
-    .map((value, index) => (puzzle[index] === EMPTY && value === EMPTY ? index : -1))
-    .filter((index) => index >= 0);
-  const openCellsWithoutSleepers = emptyCellsRemaining.filter((cell) => (
-    !sleeperSet.has(cell) && !sleeperBlockedCells.has(cell)
-  ));
-  if (sleeperCells.length && openCellsWithoutSleepers.length === 0) sleeperCells = [];
+  const blockersWithoutSleepers = addCurrentInputBlockers(new Set(), { includeSleepers: false });
+  const blockersWithSleepers = new Set(blockersWithoutSleepers);
+  sleeperSet.forEach((cell) => blockersWithSleepers.add(cell));
+  sleeperBlockedCells.forEach((cell) => blockersWithSleepers.add(cell));
+  if (sleeperCells.length && !hasPlayableOpenCell(blockersWithSleepers) && hasPlayableOpenCell(blockersWithoutSleepers)) {
+    sleeperCells = [];
+  }
 
   if (!sleeperBlockedCells.size) return;
   const currentSleeperSet = new Set(sleeperCells);
-  const remainingEmptyCells = entries
-    .map((value, index) => (puzzle[index] === EMPTY && value === EMPTY ? index : -1))
-    .filter((index) => index >= 0);
-  const openCells = remainingEmptyCells.filter((cell) => (
-    !currentSleeperSet.has(cell) && !sleeperBlockedCells.has(cell)
-  ));
-  if (!sleeperBlockedCells.size || openCells.length === 0) {
+  const blockersWithoutSleeperBlocks = addCurrentInputBlockers(new Set(), { includeSleepers: false });
+  currentSleeperSet.forEach((cell) => blockersWithoutSleeperBlocks.add(cell));
+  const blockersWithSleeperBlocks = new Set(blockersWithoutSleeperBlocks);
+  sleeperBlockedCells.forEach((cell) => blockersWithSleeperBlocks.add(cell));
+  if (!hasPlayableOpenCell(blockersWithSleeperBlocks) && hasPlayableOpenCell(blockersWithoutSleeperBlocks)) {
     sleeperBlockedCells = new Set();
     sleeperBlockedTurns = new Map();
     sleeperBlockTurns = 0;
@@ -5987,7 +6070,7 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
         ...sleeperBlockedCells,
         ...jammerCellsByCage.values(),
       ].filter((cell) => cell !== null));
-      const openCell = puzzle.findIndex((value, index) => value === EMPTY && !blockedCells.has(index));
+      const openCell = entries.findIndex((_, index) => isPlayableOpenCell(index, blockedCells));
       if (openCell >= 0) selected = openCell;
     }
     mistakes = bossContinuation?.mistakes ?? 0;
