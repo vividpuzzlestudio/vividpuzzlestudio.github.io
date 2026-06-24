@@ -411,6 +411,15 @@ h1.title-ja {
   line-height: 1.1;
 }
 
+#timerDisplay.timer-warning {
+  color: #c93428;
+  text-shadow: 0 0 12px rgba(201, 52, 40, .22);
+}
+
+#timerDisplay.timer-warning-flash {
+  animation: timer-last-minute 1.35s ease both;
+}
+
 #difficultyDisplay {
   min-height: 18px;
   white-space: nowrap;
@@ -3064,6 +3073,24 @@ h1.title-ja {
   100% {
     opacity: 0;
     transform: translateY(-8px) scale(.98);
+  }
+}
+
+@keyframes timer-last-minute {
+  0% {
+    transform: scale(1);
+    filter: none;
+  }
+  28% {
+    transform: scale(1.12);
+    filter: drop-shadow(0 0 8px rgba(201, 52, 40, .32));
+  }
+  58% {
+    transform: scale(.98);
+  }
+  100% {
+    transform: scale(1);
+    filter: none;
   }
 }
 

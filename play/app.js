@@ -226,6 +226,7 @@ const TEXT = {
       rogueMineBlocked: "地雷 不発！",
       rogueHintSingle: "ヒント {n}マス 確定！ +30",
       rogueLastCellHint: "ラストヒント {n}マス 確定！",
+      rogueLastMinute: "残り1分！",
       mineSearchMineHelp: "踏んだらゲームオーバー",
       heartTimeHelp: "時間を回復",
       timeUp: "時間切れです。",
@@ -480,6 +481,7 @@ const TEXT = {
       rogueMineBlocked: "Mine fizzled!",
       rogueHintSingle: "Hint confirmed {n} cells! +30",
       rogueLastCellHint: "Last-cell hint confirmed {n} cells!",
+      rogueLastMinute: "1 minute left!",
       mineSearchMineHelp: "Game over if stepped on",
       heartTimeHelp: "restores time",
       timeUp: "Time is up.",
@@ -777,6 +779,7 @@ let currentAdventureStage = null;
 let adventurePracticeEnabled = localStorage.getItem(ADVENTURE_PRACTICE_KEY) === "1";
 let currentAdventurePractice = false;
 let adventureTimeLimitMs = null;
+let rogueLastMinuteWarned = false;
 let adventureMineIntervalMs = null;
 let adventureMineIntervalId = null;
 let heartDeadlineMs = null;
@@ -1131,7 +1134,7 @@ function showComboToast(text, level = "combo-toast-normal", options = {}) {
   toastQueue.push({
     text,
     level,
-    muted: !options.forceFull && isCenterBoxCell(selected),
+    muted: Boolean(options.muted) || (!options.forceFull && isCenterBoxCell(selected)),
   });
   renderNextComboToast();
 }
@@ -5219,7 +5222,7 @@ function enterNumber(number) {
     const level = streak >= 100 ? "combo-toast-century" : streak >= 10 ? "combo-toast-lg" : "combo-toast-normal";
     showComboToast(streak >= 100
       ? t("streak100", { streak, points })
-      : t("streak", { streak, points }), level);
+      : t("streak", { streak, points }), level, { muted: true });
   }
   const triggeredItem = triggerItem(selected);
   advanceNumberClimb(number, numberClimbReset);
@@ -5234,18 +5237,18 @@ function enterNumber(number) {
   applyRogueLastCellHints();
   if (!blockWasComplete && isCompletedBlock(selected)) {
     flashCompletedBlock(selected);
-    showComboToast(t("blockComplete"));
+    showComboToast(t("blockComplete"), "combo-toast-normal", { muted: true });
   }
   const completedCage = cageForCell(selected);
   if (!cageWasComplete && isCompletedCage(completedCage) && completedCage.cells.length >= 2) {
     flashCompletedCage(completedCage);
-    showComboToast(t("cageComplete"));
+    showComboToast(t("cageComplete"), "combo-toast-normal", { muted: true });
   }
   const boardSolved = isMineSearchMode() ? isMineSearchCleared() : entries.every((value, index) => value === solution[index]);
   const won = isRogueBossStage() ? rogueBossRemainingHp() <= 0 : boardSolved;
   const shiftedCages = !won && maybeShiftCages(selected);
   if (numberSolvedBefore < SIZE && solvedCountForNumber(number) >= SIZE) {
-    showComboToast(t("numberComplete", { n: number }));
+    showComboToast(t("numberComplete", { n: number }), "combo-toast-normal", { muted: true });
   }
   if (!won) advancePatrol();
   if (triggeredItem || shiftedCages || bomberEffect.clearedCells.length || bomberEffect.mergedCage) {
@@ -5581,8 +5584,28 @@ function timerDisplayText() {
   return formatTime(remaining);
 }
 
+function resetTimerWarning() {
+  rogueLastMinuteWarned = false;
+  timerEl.classList.remove("timer-warning", "timer-warning-flash");
+}
+
+function updateRogueLastMinuteWarning(remainingMs) {
+  const isLastMinute = isRogueRunMode() && adventureTimeLimitMs && !over && remainingMs > 0 && remainingMs <= 60000;
+  timerEl.classList.toggle("timer-warning", Boolean(isLastMinute));
+  if (!isLastMinute || rogueLastMinuteWarned) return;
+  rogueLastMinuteWarned = true;
+  timerEl.classList.add("timer-warning-flash");
+  window.setTimeout(() => timerEl.classList.remove("timer-warning-flash"), 1400);
+  showComboToast(t("rogueLastMinute"), "combo-toast-xl", { forceFull: true });
+}
+
 function updateTimerTick() {
   timerEl.textContent = timerDisplayText();
+  if (adventureTimeLimitMs) {
+    updateRogueLastMinuteWarning(Math.max(0, adventureTimeLimitMs - currentElapsedMs()));
+  } else {
+    resetTimerWarning();
+  }
   if (isNumberClimbMode()) renderNumberClimbPanel();
   if (adventureTimeLimitMs && currentElapsedMs() >= adventureTimeLimitMs && !over) {
     finish(false, { reason: "timeUp" });
@@ -5604,6 +5627,7 @@ function finish(won, options = {}) {
   over = true;
   paused = false;
   stopTimer();
+  resetTimerWarning();
   const recordKey = currentRecordKey();
   const resultElapsedMs = isRogueRunMode() ? rogueRunElapsedMs + elapsedMs : elapsedMs;
   if (won && isRogueRunMode() && rogueRunActive && rogueRunStage < rogueStageCount()) {
@@ -5994,6 +6018,8 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     currentAdventureStage = requestedAdventureStage;
     currentAdventurePractice = Boolean(currentAdventureStage && adventurePracticeEnabled);
     adventureTimeLimitMs = currentAdventurePractice ? null : roguePlan?.timeLimitMs || adventureStage?.timeLimitMs || null;
+    rogueLastMinuteWarned = Boolean(bossContinuation && adventureTimeLimitMs && adventureTimeLimitMs - (bossContinuation.elapsedMs ?? 0) <= 60000);
+    timerEl.classList.remove("timer-warning", "timer-warning-flash");
     adventureMineIntervalMs = isGrowingMinesMode() ? adventureRuleConfig("growingMines").mineIntervalMs || adventureStage?.mineIntervalMs || null : null;
     heartDeadlineMs = currentAdventurePractice ? null : adventureStage?.heartDeadlineMs || null;
     heartDeadlineElapsedMs = 0;
