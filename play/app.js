@@ -547,7 +547,7 @@ const TEXT = {
   },
 };
 const ROGUE_RUN_STAGE_COUNT = 5;
-const ROGUE_BOSS_HP = 1500;
+const ROGUE_BOSS_HP = 10000;
 const ROGUE_ABILITY_DEFS = [
   { id: "heartPlus", titleKey: "rogueAbilityHeartPlus", helpKey: "rogueAbilityHeartPlusHelp", stackable: true },
   { id: "heartTime", titleKey: "rogueAbilityHeartTime", helpKey: "rogueAbilityHeartTimeHelp" },
