@@ -196,7 +196,7 @@ const TEXT = {
       rogueAbilityShuffleStock: "シャッフル補給",
       rogueAbilityShuffleStockHelp: "各ステージにシャッフルを2個追加",
       rogueAbilityLastCellHint: "ラストヒント",
-      rogueAbilityLastCellHintHelp: "残り1マスの列・ブロック・ケージを1択ヒント化",
+      rogueAbilityLastCellHintHelp: "残り1マスのケージを1択ヒント化",
       rogueAbilityCalmGimmicks: "スローテンポ",
       rogueAbilityCalmGimmicksHelp: "敵と落雷の動きが少しゆっくりになる",
       rogueAbilityComboBonus: "集中力",
@@ -451,7 +451,7 @@ const TEXT = {
       rogueAbilityShuffleStock: "Shuffle Stock",
       rogueAbilityShuffleStockHelp: "Adds 2 shuffle items to each stage",
       rogueAbilityLastCellHint: "Last-Cell Hint",
-      rogueAbilityLastCellHintHelp: "Rows, boxes, and cages with 1 cell left become one-choice hints",
+      rogueAbilityLastCellHintHelp: "Cages with 1 cell left become one-choice hints",
       rogueAbilityCalmGimmicks: "Slower Tempo",
       rogueAbilityCalmGimmicksHelp: "Enemies and lightning move a little slower",
       rogueAbilityComboBonus: "Focus",
@@ -4079,26 +4079,9 @@ function renderRogueAbilityPanel() {
 }
 
 function rogueLastHintUnits() {
-  const units = [];
-  for (let row = 0; row < SIZE; row += 1) {
-    units.push(Array.from({ length: SIZE }, (_, col) => indexOf(row, col)));
-  }
-  for (let col = 0; col < SIZE; col += 1) {
-    units.push(Array.from({ length: SIZE }, (_, row) => indexOf(row, col)));
-  }
-  for (let boxRow = 0; boxRow < SIZE; boxRow += BOX) {
-    for (let boxCol = 0; boxCol < SIZE; boxCol += BOX) {
-      const boxCells = [];
-      for (let row = boxRow; row < boxRow + BOX; row += 1) {
-        for (let col = boxCol; col < boxCol + BOX; col += 1) {
-          boxCells.push(indexOf(row, col));
-        }
-      }
-      units.push(boxCells);
-    }
-  }
-  cages.filter((cage) => cage.cells.length >= 2).forEach((cage) => units.push([...cage.cells]));
-  return units;
+  return cages
+    .filter((cage) => cage.cells.length >= 2)
+    .map((cage) => [...cage.cells]);
 }
 
 function applyRogueLastCellHints() {
@@ -5533,10 +5516,11 @@ function applyLocale() {
   confirmResetButton.textContent = t("chooseDifficulty");
 }
 
-function startTimer() {
+function startTimer(options = {}) {
+  const initialElapsedMs = options.initialElapsedMs ?? 0;
   stopTimer();
   startTime = Date.now();
-  elapsedMs = 0;
+  elapsedMs = initialElapsedMs;
   if (isHeartbeatMode()) startHeartDeadline();
   timerId = window.setInterval(() => {
     updateTimerTick();
@@ -6103,7 +6087,8 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     totalMistakes = bossContinuation?.totalMistakes ?? 0;
     score = continuingRogueRun ? rogueRunScoreCarry : 0;
     rogueBossScoreStart = roguePlan?.boss ? bossContinuation?.bossScoreStart ?? score : 0;
-    elapsedMs = bossContinuation?.elapsedMs ?? 0;
+    const initialElapsedMs = bossContinuation?.elapsedMs ?? 0;
+    elapsedMs = initialElapsedMs;
     startTime = 0;
     showScoreCard = false;
     streak = 0;
@@ -6121,7 +6106,7 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     if (currentAdventureMode() === "blind") {
       startBlindIntro();
     } else {
-      startTimer();
+      startTimer({ initialElapsedMs });
     }
     render();
     trackWebEvent("game_start", {
