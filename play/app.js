@@ -28,6 +28,7 @@ const ADVENTURE_STAGES = {
   chaser: { difficulty: "hard", itemMode: "chaser", itemCount: 10, timeLimitMs: 300000, chaserIntervalMs: 2500, chaserStunMs: 5000 },
   striker: { difficulty: "hard", itemMode: "striker", itemCount: 10, timeLimitMs: 300000, strikerIntervalMs: 850, strikerStunMs: 3500 },
   lightning: { difficulty: "hard", itemMode: "lightning", itemCount: 10, timeLimitMs: 300000, lightningIntervalMs: 3200, lightningWarnMs: 1400, lightningDangerMs: 360, lightningStrikeMs: 520 },
+  hintNoise: { difficulty: "hard", itemMode: "hintNoise", itemCount: 16, timeLimitMs: 300000, hintNoiseTurns: 4, hintNoiseInitialCount: 8, hintNoiseInterval: 3, hintNoiseCount: 4 },
 };
 const PATROL_GUARDIAN_COUNT = 2;
 const SLEEPER_COUNT = 3;
@@ -149,6 +150,8 @@ const TEXT = {
       adventureStrikerHelp: "一直線に突進 / 5分制限",
       adventureLightning: "雷雨",
       adventureLightningHelp: "落雷範囲から逃げろ / 5分制限",
+      adventureHintNoise: "ノイズゾーン",
+      adventureHintNoiseHelp: "ヒント使用後に候補が乱れる / 5分制限",
       adventureShiftingCages: "カオスケージ",
       adventureShiftingCagesHelp: "5手毎にシャッフル / 4分制限",
       adventureRogueRun: "ローグラン",
@@ -219,12 +222,14 @@ const TEXT = {
       roguePreviewJammer: "ケージ情報を隠す",
       roguePreviewSleeper: "起床で周囲封鎖",
       roguePreviewLightning: "落雷エリアが発生",
+      roguePreviewHintNoise: "ノイズが発生しヒント候補が乱れる",
       roguePreviewChaser: "リアルタイム追跡",
       roguePreviewStriker: "一直線に突進",
       rogueHeartBoost: "ハート ライフ {n}回復！",
       rogueHeartTime: "時間 10秒回復！",
       rogueMineBlocked: "地雷 不発！",
       rogueHintSingle: "ヒント {n}マス 確定！ +30",
+      hintNoiseSpread: "ノイズ発生！ ヒント候補が乱れます",
       rogueLastCellHint: "ラストヒント {n}マス 確定！",
       rogueLastMinute: "残り1分！",
       mineSearchMineHelp: "踏んだらゲームオーバー",
@@ -404,6 +409,8 @@ const TEXT = {
       adventureStrikerHelp: "Straight-line rush / 5-minute limit",
       adventureLightning: "Thunderstorm",
       adventureLightningHelp: "Dodge lightning zones / 5-minute limit",
+      adventureHintNoise: "Noise Zone",
+      adventureHintNoiseHelp: "Hints leave noisy candidates / 5-minute limit",
       adventureShiftingCages: "Chaos Cages",
       adventureShiftingCagesHelp: "Shuffle every 5 moves / 4-minute limit",
       adventureRogueRun: "Rogue Run",
@@ -474,12 +481,14 @@ const TEXT = {
       roguePreviewJammer: "Hides cage info",
       roguePreviewSleeper: "Blocks nearby cells",
       roguePreviewLightning: "Lightning zones appear",
+      roguePreviewHintNoise: "Noise appears and distorts hints",
       roguePreviewChaser: "Real-time pursuit",
       roguePreviewStriker: "Straight-line rush",
       rogueHeartBoost: "Heart restored {n} lives!",
       rogueHeartTime: "Restored 10 seconds!",
       rogueMineBlocked: "Mine fizzled!",
       rogueHintSingle: "Hint confirmed {n} cells! +30",
+      hintNoiseSpread: "Noise spread! Hint candidates are unstable",
       rogueLastCellHint: "Last-cell hint confirmed {n} cells!",
       rogueLastMinute: "1 minute left!",
       mineSearchMineHelp: "Game over if stepped on",
@@ -602,10 +611,10 @@ const ROGUE_STAGE_PLAN = [
     rules: { growingMines: { mineIntervalMs: 22000 }, chaser: { chaserIntervalMs: 2800 }, striker: { strikerIntervalMs: 1100 }, lightning: { lightningIntervalMs: 4200, lightningWarnMs: 1600, lightningDangerMs: 420 } },
   },
 ];
-const ROGUE_GIMMICK_POOL = ["growingMines", "patrol", "bomber", "cageEater", "numberClimb", "shiftingCages", "sleeper", "jammer", "lightning", "chaser", "striker"];
+const ROGUE_GIMMICK_POOL = ["growingMines", "patrol", "bomber", "cageEater", "numberClimb", "shiftingCages", "sleeper", "jammer", "lightning", "hintNoise", "chaser", "striker"];
 const ROGUE_STACKABLE_ENEMY_GIMMICKS = new Set(["patrol", "bomber", "cageEater", "sleeper", "jammer", "chaser", "striker"]);
 const ROGUE_RANDOM_STAGE_SHAPES = [
-  { nameKey: "rogueStageWarmup", difficulty: "normal", itemCount: 12, initialMines: 4, timeLimitMs: 300000, picks: 1, pool: ["growingMines", "patrol", "cageEater", "numberClimb", "shiftingCages", "sleeper", "jammer"] },
+  { nameKey: "rogueStageWarmup", difficulty: "normal", itemCount: 12, initialMines: 4, timeLimitMs: 300000, picks: 1, pool: ["growingMines", "patrol", "cageEater", "numberClimb", "shiftingCages", "sleeper", "jammer", "hintNoise"] },
   { nameKey: "rogueStageMineGrowth", difficulty: "hard", itemCount: 13, initialMines: 6, timeLimitMs: 300000, picks: 2 },
   { nameKey: "rogueStageGuardBomb", difficulty: "hard", itemCount: 13, initialMines: 6, timeLimitMs: 300000, picks: 2 },
   { nameKey: "rogueStageHiddenStorm", difficulty: "hard", itemCount: 13, initialMines: 7, timeLimitMs: 300000, picks: 3 },
@@ -621,6 +630,7 @@ const ROGUE_GIMMICK_PREVIEW = {
   jammer: { titleKey: "adventureJammer", helpKey: "roguePreviewJammer" },
   sleeper: { titleKey: "adventureSleeper", helpKey: "roguePreviewSleeper" },
   lightning: { titleKey: "adventureLightning", helpKey: "roguePreviewLightning" },
+  hintNoise: { titleKey: "adventureHintNoise", helpKey: "roguePreviewHintNoise" },
   chaser: { titleKey: "adventureChaser", helpKey: "roguePreviewChaser" },
   striker: { titleKey: "adventureStriker", helpKey: "roguePreviewStriker" },
 };
@@ -754,6 +764,8 @@ let cageStarts = new Map();
 let items = new Map();
 let usedItems = new Set();
 let hinted = new Map();
+let hintNoiseTurns = new Map();
+let hintNoiseSteps = 0;
 let notes = new Map();
 let mineNotes = new Set();
 let effects = new Map();
@@ -2733,6 +2745,12 @@ function placeMineSearchItems(stage) {
   return map;
 }
 
+function placeHintNoiseItems(stage) {
+  const map = placeBalancedAdventureItems(stage.itemCount || 16);
+  ensureItemTypeCount(map, "hint", stage.hintCount || 8);
+  return map;
+}
+
 function placeAdventureItems(stage) {
   if (stage.itemMode === "allHint") return placeAllItems("hint");
   if (stage.itemMode === "allHeart") return placeAllItems("heart");
@@ -2749,6 +2767,7 @@ function placeAdventureItems(stage) {
   if (stage.itemMode === "chaser") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   if (stage.itemMode === "striker") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   if (stage.itemMode === "lightning") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
+  if (stage.itemMode === "hintNoise") return placeHintNoiseItems(stage);
   if (stage.itemMode === "shiftingCages") return placeBalancedAdventureItems(stage.itemCount || DIFFICULTIES[stage.difficulty].itemCount);
   if (stage.itemMode === "rogueRun") return placeRogueItems(stage);
   return placeItems(DIFFICULTIES[stage.difficulty].itemCount);
@@ -2923,6 +2942,7 @@ function renderBoard() {
         : lightningPhase === "danger" ? "lightning-danger" : "lightning-warning");
     }
     if (bomberDefuseCells.has(index)) cell.classList.add(cageEaterActive ? "cage-eater-defuse-zone" : "bomber-defuse-zone");
+    if (hintNoiseTurns.has(index)) cell.classList.add("hint-noise-zone");
     if (sleeperBlockedCells.has(index)) {
       const blockedTurns = sleeperBlockedTurns.get(index) || sleeperBlockTurns || 1;
       cell.classList.add("sleeper-blocked-zone", `sleeper-blocked-turn-${Math.max(1, Math.min(3, blockedTurns))}`);
@@ -2989,6 +3009,13 @@ function renderBoard() {
       cell.append(marker);
     }
 
+    if (hintNoiseTurns.has(index) && value === EMPTY && canRevealCellInfo) {
+      const marker = document.createElement("span");
+      marker.className = "hint-noise-marker";
+      marker.setAttribute("aria-hidden", "true");
+      cell.append(marker);
+    }
+
     if (isJammedCage(cageId) && index === jammerMarkerCellFor(cageId)) {
       const marker = document.createElement("span");
       marker.className = "jammer-marker";
@@ -3027,6 +3054,13 @@ function renderBoard() {
     if (sleeperCells.includes(index) && entries[index] === EMPTY) {
       const marker = document.createElement("span");
       marker.className = "sleeper-marker";
+      marker.setAttribute("aria-hidden", "true");
+      cell.append(marker);
+    }
+
+    if (sleeperBlockedCells.has(index)) {
+      const marker = document.createElement("span");
+      marker.className = "sleeper-block-marker";
       marker.setAttribute("aria-hidden", "true");
       cell.append(marker);
     }
@@ -3314,6 +3348,7 @@ function renderAdventureChoices() {
     ["chaser", t("adventureChaser"), t("adventureChaserHelp")],
     ["striker", t("adventureStriker"), t("adventureStrikerHelp")],
     ["lightning", t("adventureLightning"), t("adventureLightningHelp")],
+    ["hintNoise", t("adventureHintNoise"), t("adventureHintNoiseHelp")],
   ].forEach(([key, title, help]) => {
     const button = document.createElement("button");
     button.className = "difficulty-button adventure-button";
@@ -3649,6 +3684,7 @@ function adventureStageLabel(stageKey) {
   if (stageKey === "chaser") return t("adventureChaser");
   if (stageKey === "striker") return t("adventureStriker");
   if (stageKey === "lightning") return t("adventureLightning");
+  if (stageKey === "hintNoise") return t("adventureHintNoise");
   if (stageKey === "shiftingCages") return t("adventureShiftingCages");
   return stageKey;
 }
@@ -3888,6 +3924,14 @@ function rogueRulesFromGimmicks(gimmicks, stageIndex) {
       lightningIntervalMs: Math.max(2600, 4600 - stageIndex * 180 - (count("lightning") - 1) * 520),
       lightningWarnMs: Math.max(1250, 1700 - (count("lightning") - 1) * 120),
       lightningDangerMs: 400,
+    };
+  }
+  if (count("hintNoise")) {
+    rules.hintNoise = {
+      hintNoiseTurns: 4,
+      hintNoiseInitialCount: Math.min(12, 8 + (count("hintNoise") - 1) * 2),
+      hintNoiseInterval: 3,
+      hintNoiseCount: Math.min(6, 4 + (count("hintNoise") - 1)),
     };
   }
   if (count("chaser")) {
@@ -4144,6 +4188,83 @@ function rogueHintTargetCells(index) {
   return [...targets].filter((cell) => entries[cell] === EMPTY);
 }
 
+function isHintNoiseMode() {
+  return currentAdventureMode() === "hintNoise" || rogueHasGimmick("hintNoise");
+}
+
+function hintNoiseDuration() {
+  return adventureRuleConfig("hintNoise").hintNoiseTurns || 4;
+}
+
+function hintNoiseNaturalInterval() {
+  return adventureRuleConfig("hintNoise").hintNoiseInterval || 3;
+}
+
+function hintNoiseNaturalCount() {
+  return adventureRuleConfig("hintNoise").hintNoiseCount || 4;
+}
+
+function hintNoiseInitialCount() {
+  return adventureRuleConfig("hintNoise").hintNoiseInitialCount || 8;
+}
+
+function hintChoicesForCell(cell) {
+  const correct = solution[cell];
+  const wrongPool = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9].filter((n) => n !== correct));
+  if (!isHintNoiseMode() || !hintNoiseTurns.has(cell)) {
+    return hasRogueAbility("hintSingle") ? [correct] : shuffle([correct, wrongPool[0]]);
+  }
+  const wrongCount = hasRogueAbility("hintSingle") ? 1 : 2;
+  return shuffle([correct, ...wrongPool.slice(0, wrongCount)]);
+}
+
+function spreadHintNoise(origin, targets) {
+  if (!isHintNoiseMode()) return [];
+  const cells = new Set([...surroundingCells(origin), ...targets]);
+  const duration = hintNoiseDuration();
+  const noisyCells = [...cells].filter((cell) => puzzle[cell] === EMPTY && entries[cell] === EMPTY);
+  noisyCells.forEach((cell) => hintNoiseTurns.set(cell, duration));
+  return noisyCells;
+}
+
+function spawnHintNoise(count = hintNoiseNaturalCount(), avoidCells = []) {
+  if (!isHintNoiseMode()) return [];
+  const avoid = new Set(avoidCells);
+  const candidates = shuffle(emptyCells()).filter((cell) => (
+    entries[cell] === EMPTY &&
+    !hintNoiseTurns.has(cell) &&
+    !avoid.has(cell)
+  ));
+  const spawned = candidates.slice(0, count);
+  const duration = hintNoiseDuration();
+  spawned.forEach((cell) => {
+    hintNoiseTurns.set(cell, duration);
+    flashEffect(cell, "effect-hint-target", 520);
+  });
+  return spawned;
+}
+
+function setupHintNoise() {
+  hintNoiseSteps = 0;
+  hintNoiseTurns = new Map();
+  spawnHintNoise(hintNoiseInitialCount(), [selected]);
+}
+
+function advanceHintNoiseNatural(keepFreshCells = []) {
+  if (!isHintNoiseMode()) return;
+  hintNoiseSteps += 1;
+  if (hintNoiseSteps % hintNoiseNaturalInterval() !== 0) return;
+  spawnHintNoise(hintNoiseNaturalCount(), [selected, ...keepFreshCells]);
+}
+
+function tickHintNoise(keepFreshCells = []) {
+  if (!hintNoiseTurns.size) return;
+  const fresh = new Set(keepFreshCells);
+  hintNoiseTurns = new Map([...hintNoiseTurns.entries()]
+    .map(([cell, turns]) => [cell, fresh.has(cell) ? turns : turns - 1])
+    .filter(([cell, turns]) => turns > 0 && puzzle[cell] === EMPTY && entries[cell] === EMPTY));
+}
+
 function renderRogueAbilityPanel() {
   if (!isRogueRunMode() || !rogueRunActive) {
     rogueAbilityPanel.hidden = true;
@@ -4178,6 +4299,7 @@ function applyRogueLastCellHints() {
     flashEffect(cell, "effect-hint-target", 700);
   });
   if (targets.size > 0) {
+    targets.forEach((cell) => spreadHintNoise(cell, [cell]));
     showComboToast(t("rogueLastCellHint", { n: targets.size }), comboLevel(targets.size));
   }
   return targets.size;
@@ -4949,6 +5071,8 @@ function snapshotState() {
     items: cloneMap(items),
     usedItems: new Set(usedItems),
     hinted: cloneMap(hinted),
+    hintNoiseTurns: new Map(hintNoiseTurns),
+    hintNoiseSteps,
     notes: cloneSetMap(notes),
     mineNotes: new Set(mineNotes),
     selected,
@@ -4986,6 +5110,8 @@ function restoreSnapshot(snapshot) {
   items = cloneMap(snapshot.items);
   usedItems = new Set(snapshot.usedItems);
   hinted = cloneMap(snapshot.hinted);
+  hintNoiseTurns = new Map(snapshot.hintNoiseTurns || []);
+  hintNoiseSteps = snapshot.hintNoiseSteps || 0;
   notes = cloneSetMap(snapshot.notes);
   mineNotes = new Set(snapshot.mineNotes || []);
   selected = snapshot.selected;
@@ -5037,6 +5163,8 @@ function sealItemEffectsInLastUndo(inputCell, scoreBeforeInput, streakBeforeInpu
     entry.items = cloneMap(items);
     entry.usedItems = new Set(usedItems);
     entry.hinted = cloneMap(hinted);
+    entry.hintNoiseTurns = new Map(hintNoiseTurns);
+    entry.hintNoiseSteps = hintNoiseSteps;
     entry.notes = cloneSetMap(notes);
     entry.mineNotes = new Set(mineNotes);
     entry.patrolSteps = [...patrolSteps];
@@ -5077,6 +5205,8 @@ function sealItemEffectsInLastUndo(inputCell, scoreBeforeInput, streakBeforeInpu
   snapshot.items = cloneMap(items);
   snapshot.usedItems = new Set(usedItems);
   snapshot.hinted = cloneMap(hinted);
+  snapshot.hintNoiseTurns = new Map(hintNoiseTurns);
+  snapshot.hintNoiseSteps = hintNoiseSteps;
   snapshot.notes = cloneSetMap(notes);
   snapshot.mineNotes = new Set(mineNotes);
   snapshot.patrolSteps = [...patrolSteps];
@@ -5294,6 +5424,9 @@ function enterNumber(number) {
       : t("streak", { streak, points }), level, { muted: true });
   }
   const triggeredItem = triggerItem(selected);
+  const freshNoiseCells = triggeredItem?.hintNoiseCells || [];
+  tickHintNoise(freshNoiseCells);
+  advanceHintNoiseNatural(freshNoiseCells);
   advanceNumberClimb(number, numberClimbReset);
   if (triggeredItem?.numberClimbReset) {
     numberClimbMinimum = 1;
@@ -5353,7 +5486,7 @@ function handleMistake() {
 function triggerItem(index) {
   const item = items.get(index);
   if (!item || usedItems.has(index)) return null;
-  const result = { type: item, clearedCells: [], numberClimbReset: false };
+  const result = { type: item, clearedCells: [], numberClimbReset: false, hintNoiseCells: [] };
   usedItems.add(index);
   flashEffect(index, `effect-${item}`, 700);
 
@@ -5373,6 +5506,7 @@ function triggerItem(index) {
       entries[cell] = EMPTY;
       puzzle[cell] = EMPTY;
       hinted.delete(cell);
+      hintNoiseTurns.delete(cell);
       notes.delete(cell);
       mineNotes.delete(cell);
       flashEffect(cell, "effect-cleared", 700);
@@ -5409,18 +5543,20 @@ function triggerItem(index) {
   if (item === "hint") {
     const targets = rogueHintTargetCells(index);
     targets.forEach((cell) => {
-      const correct = solution[cell];
-      const wrong = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9].filter((n) => n !== correct))[0];
-      hinted.set(cell, hasRogueAbility("hintSingle") ? [correct] : shuffle([correct, wrong]));
+      hinted.set(cell, hintChoicesForCell(cell));
       notes.delete(cell);
       mineNotes.delete(cell);
       flashEffect(cell, "effect-hint-target", 700);
     });
+    result.hintNoiseCells = spreadHintNoise(index, targets);
     message(`Hint narrowed ${targets.length} cells.`);
     addScore(30);
     showComboToast(hasRogueAbility("hintSingle")
       ? t("rogueHintSingle", { n: targets.length })
       : t("hint", { n: targets.length }), comboLevel(targets.length));
+    if (result.hintNoiseCells.length) {
+      showComboToast(t("hintNoiseSpread"), "combo-toast-normal", { muted: true });
+    }
   }
 
   if (item === "shuffle") {
@@ -5957,6 +6093,8 @@ function saveInitialState() {
     strikerCell,
     strikerDirection: strikerDirection ? { ...strikerDirection } : null,
     strikerStunRemainingMs: currentStrikerStunRemaining(),
+    hintNoiseTurns: new Map(hintNoiseTurns),
+    hintNoiseSteps,
     solution: [...solution],
     puzzle: [...puzzle],
     cages: cages.map((cage) => ({ id: cage.id, cells: [...cage.cells], sum: cage.sum })),
@@ -6019,6 +6157,8 @@ function retryGame() {
   items = cloneMap(initialState.items);
   usedItems = new Set();
   hinted = new Map();
+  hintNoiseTurns = new Map(initialState.hintNoiseTurns || []);
+  hintNoiseSteps = initialState.hintNoiseSteps || 0;
   notes = new Map();
   mineNotes = new Set();
   effects = new Map();
@@ -6141,6 +6281,8 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
       : options.intro ? placeIntroItems(config.itemCount, introStartCell) : placeItems(config.itemCount);
     usedItems = new Set();
     hinted = new Map();
+    hintNoiseTurns = new Map();
+    hintNoiseSteps = 0;
     notes = new Map();
     mineNotes = new Set();
     effects = new Map();
@@ -6169,6 +6311,7 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
       const openCell = entries.findIndex((_, index) => isPlayableOpenCell(index, blockedCells));
       if (openCell >= 0) selected = openCell;
     }
+    setupHintNoise();
     mistakes = bossContinuation?.mistakes ?? 0;
     totalMistakes = bossContinuation?.totalMistakes ?? 0;
     score = continuingRogueRun ? rogueRunScoreCarry : 0;
