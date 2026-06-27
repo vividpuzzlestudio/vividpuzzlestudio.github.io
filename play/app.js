@@ -672,10 +672,14 @@ const resetRetryButton = document.querySelector("#resetRetryButton");
 const confirmResetButton = document.querySelector("#confirmResetButton");
 const loadingOverlay = document.querySelector("#loadingOverlay");
 const comboToast = document.querySelector("#comboToast");
+const rogueStagePanel = document.createElement("section");
+rogueStagePanel.className = "rogue-stage-panel";
+rogueStagePanel.hidden = true;
+statusPanel.insertAdjacentElement("afterend", rogueStagePanel);
 const rogueAbilityPanel = document.createElement("section");
 rogueAbilityPanel.className = "rogue-ability-panel";
 rogueAbilityPanel.hidden = true;
-statusPanel.insertAdjacentElement("afterend", rogueAbilityPanel);
+rogueStagePanel.insertAdjacentElement("afterend", rogueAbilityPanel);
 const numberClimbPanel = document.createElement("section");
 numberClimbPanel.className = "number-climb-panel";
 numberClimbPanel.hidden = true;
@@ -3609,27 +3613,8 @@ function difficultyDisplayLabel() {
 }
 
 function rogueDifficultyDisplayHtml() {
-  const plan = currentRogueStagePlan();
-  const stageNumber = rogueRunStage || 1;
-  const regularStages = rogueRegularStageCount();
-  const stageText = plan?.boss
-    ? "BOSS"
-    : `${Math.min(stageNumber, regularStages)}/${regularStages}`;
-  const gimmickEntries = plan?.boss
-    ? [{ label: t("rogueBossName"), count: 1 }]
-    : [...rogueGimmickCounts(plan?.gimmicks || [])].map(([gimmick, count]) => ({
-      label: rogueGimmickTitle(gimmick),
-      count,
-    }));
-  const chips = gimmickEntries.length
-    ? gimmickEntries.slice(0, 2).map((entry) => `<span>${entry.label}${entry.count > 1 ? ` x${entry.count}` : ""}</span>`).join("")
-    : `<span>${plan?.nameKey ? t(plan.nameKey) : t("roguePreviewNoGimmick")}</span>`;
-  const extraCount = Math.max(0, gimmickEntries.length - 2);
-  return `
-    <span class="difficulty-rogue-mode">Rogue</span>
-    <span class="difficulty-rogue-stage">${stageText}</span>
-    <span class="difficulty-rogue-chips">${chips}${extraCount ? `<span>+${extraCount}</span>` : ""}</span>
-  `;
+  const label = LOCALE === "ja" ? "ローグ" : "Rogue";
+  return `<span class="difficulty-rogue-mode">${label}</span>`;
 }
 
 function difficultyResultLabel() {
@@ -3955,6 +3940,48 @@ function rogueGimmickPreviewHtml(plan) {
     const countLabel = count > 1 ? ` x${count}` : "";
     return `<span class="rogue-gimmick-chip"><strong>${title}${countLabel}</strong><small>${help}</small></span>`;
   }).join("");
+}
+
+function rogueStageHudGimmickHtml(plan = currentRogueStagePlan()) {
+  if (plan?.boss) {
+    return `<span class="rogue-stage-gimmick is-boss">${t("rogueBossName")}</span>`;
+  }
+  const entries = [...rogueGimmickCounts(plan?.gimmicks || [])];
+  if (!entries.length) return `<span class="rogue-stage-gimmick is-quiet">${plan?.nameKey ? t(plan.nameKey) : t("roguePreviewNoGimmick")}</span>`;
+  return entries.map(([gimmick, count]) => {
+    const countLabel = count > 1 ? ` x${count}` : "";
+    return `<span class="rogue-stage-gimmick">${rogueGimmickTitle(gimmick)}${countLabel}</span>`;
+  }).join("");
+}
+
+function renderRogueStagePanel() {
+  const visible = isRogueRunMode() && rogueRunActive && !over;
+  rogueStagePanel.hidden = !visible;
+  if (!visible) {
+    rogueStagePanel.innerHTML = "";
+    return;
+  }
+  const stageNumber = rogueRunStage || 1;
+  const plan = currentRogueStagePlan();
+  const regularStages = rogueRegularStageCount();
+  const totalStages = rogueStageCount();
+  const stageLabel = plan?.boss ? "BOSS" : `${Math.min(stageNumber, regularStages)} / ${regularStages}`;
+  const steps = Array.from({ length: totalStages }, (_, index) => {
+    const nextStage = index + 1;
+    const stepPlan = rogueStagePlanAt(nextStage);
+    const classes = ["rogue-stage-dot"];
+    if (nextStage < stageNumber) classes.push("is-complete");
+    if (nextStage === stageNumber) classes.push("is-current");
+    if (stepPlan?.boss) classes.push("is-boss");
+    return `<i class="${classes.join(" ")}"></i>`;
+  }).join("");
+  rogueStagePanel.innerHTML = `
+    <div class="rogue-stage-main">
+      <strong>${stageLabel}</strong>
+      <span>${steps}</span>
+    </div>
+    <div class="rogue-stage-gimmicks">${rogueStageHudGimmickHtml(plan)}</div>
+  `;
 }
 
 function renderRogueNextPreview(isInitial) {
@@ -4876,6 +4903,7 @@ function render() {
   renderPad();
   renderLegend();
   renderToolRow();
+  renderRogueStagePanel();
   renderRogueAbilityPanel();
   renderNumberClimbPanel();
   renderRogueBossPanel();

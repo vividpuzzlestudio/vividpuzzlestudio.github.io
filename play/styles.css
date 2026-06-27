@@ -68,6 +68,7 @@ button {
 
 .topbar,
 .status-panel,
+.rogue-stage-panel,
 .board-wrap,
 .controls,
 .item-legend,
@@ -446,61 +447,117 @@ h1.title-ja {
 }
 
 #difficultyDisplay.is-rogue-run {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 4px 5px;
-  min-height: 42px;
-  white-space: normal;
-  overflow: visible;
-  font-size: 11px;
-}
-
-.difficulty-rogue-mode {
-  min-width: 0;
-  color: #5f4a84;
-  font-size: 10px;
-  font-weight: 1000;
-  line-height: 1;
+  min-height: 18px;
   white-space: nowrap;
-}
-
-.difficulty-rogue-stage {
-  grid-row: 1 / 3;
-  grid-column: 2;
-  display: grid;
-  place-items: center;
-  min-width: 34px;
-  height: 30px;
-  padding: 0 5px;
-  border-radius: 8px;
-  background: #20252b;
-  color: #fffdfa;
-  font-size: 11px;
-  font-weight: 1000;
-  line-height: 1;
-}
-
-.difficulty-rogue-chips {
-  display: flex;
-  flex-wrap: nowrap;
-  min-width: 0;
-  gap: 3px;
   overflow: hidden;
 }
 
-.difficulty-rogue-chips span {
-  max-width: 100%;
-  padding: 2px 4px;
+.difficulty-rogue-mode {
+  display: block;
+  color: #20252b;
+  font-size: 13px;
+  font-weight: 1000;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.rogue-stage-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid #d8d4c9;
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 253, 250, .96), rgba(239, 246, 241, .92)),
+    #fffdfa;
+  box-shadow: 0 4px 12px rgba(32, 37, 43, .06);
+}
+
+.rogue-stage-panel[hidden] {
+  display: none;
+}
+
+.rogue-stage-main {
+  display: grid;
+  gap: 4px;
+  min-width: 74px;
+}
+
+.rogue-stage-main strong {
+  color: #20252b;
+  font-size: 13px;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.rogue-stage-main span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.rogue-stage-dot {
+  display: block;
+  width: 7px;
+  height: 7px;
   border-radius: 999px;
-  background: rgba(28, 127, 118, .1);
+  background: #d8d4c9;
+}
+
+.rogue-stage-dot.is-complete {
+  background: #20252b;
+}
+
+.rogue-stage-dot.is-current {
+  width: 18px;
+  background: #e4572e;
+}
+
+.rogue-stage-dot.is-boss {
+  border-radius: 3px;
+}
+
+.rogue-stage-gimmicks {
+  display: flex;
+  min-width: 0;
+  gap: 5px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.rogue-stage-gimmicks::-webkit-scrollbar {
+  display: none;
+}
+
+.rogue-stage-gimmick {
+  flex: 0 0 auto;
+  max-width: 136px;
+  padding: 4px 7px;
+  border: 1px solid rgba(28, 127, 118, .2);
+  border-radius: 999px;
+  background: rgba(28, 127, 118, .08);
   color: #17564f;
-  font-size: 8.5px;
+  font-size: 11px;
   font-weight: 900;
   line-height: 1.15;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.rogue-stage-gimmick.is-boss {
+  border-color: rgba(185, 72, 72, .25);
+  background: #fff0ed;
+  color: #8d3036;
+}
+
+.rogue-stage-gimmick.is-quiet {
+  border-color: rgba(32, 37, 43, .12);
+  background: rgba(32, 37, 43, .05);
+  color: #5c6470;
 }
 
 .board-wrap {
@@ -2328,10 +2385,11 @@ h1.title-ja {
     max-width: min(1180px, calc(100vw - 28px));
     padding: max(16px, calc(env(safe-area-inset-top) + 8px)) max(18px, calc(env(safe-area-inset-right) + 14px)) max(18px, calc(env(safe-area-inset-bottom) + 12px)) max(18px, calc(env(safe-area-inset-left) + 14px));
     grid-template-columns: minmax(430px, min(620px, calc(100svh - 118px))) minmax(320px, 420px);
-    grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto;
     grid-template-areas:
       "topbar topbar"
       "board status"
+      "board stage"
       "board abilities"
       "board controls"
       "board legend"
@@ -2345,11 +2403,12 @@ h1.title-ja {
 
   body:has(.web-demo-note) .app-shell {
     grid-template-columns: minmax(430px, min(590px, calc(100svh - 148px))) minmax(320px, 420px);
-    grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr) auto;
     grid-template-areas:
       "promo promo"
       "topbar topbar"
       "board status"
+      "board stage"
       "board abilities"
       "board controls"
       "board legend"
@@ -2371,6 +2430,10 @@ h1.title-ja {
     gap: 8px;
   }
 
+  .rogue-stage-panel {
+    grid-area: stage;
+  }
+
   .rogue-ability-panel {
     grid-area: abilities;
   }
@@ -2384,10 +2447,11 @@ h1.title-ja {
   }
 
   .app-shell:has(.rogue-ability-panel:not([hidden])):has(.rogue-boss-panel:not([hidden])) {
-    grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr) auto;
     grid-template-areas:
       "topbar topbar"
       "board status"
+      "board stage"
       "board abilities"
       "board boss"
       "board controls"
@@ -2396,11 +2460,12 @@ h1.title-ja {
   }
 
   body:has(.web-demo-note) .app-shell:has(.rogue-ability-panel:not([hidden])):has(.rogue-boss-panel:not([hidden])) {
-    grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto auto auto auto auto minmax(0, 1fr) auto;
     grid-template-areas:
       "promo promo"
       "topbar topbar"
       "board status"
+      "board stage"
       "board abilities"
       "board boss"
       "board controls"
@@ -2413,10 +2478,11 @@ h1.title-ja {
   }
 
   .app-shell:has(.rogue-ability-panel:not([hidden])):has(.number-climb-panel:not([hidden])) {
-    grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr) auto;
     grid-template-areas:
       "topbar topbar"
       "board status"
+      "board stage"
       "board abilities"
       "board climb"
       "board controls"
@@ -2425,11 +2491,12 @@ h1.title-ja {
   }
 
   body:has(.web-demo-note) .app-shell:has(.rogue-ability-panel:not([hidden])):has(.number-climb-panel:not([hidden])) {
-    grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto auto auto auto auto minmax(0, 1fr) auto;
     grid-template-areas:
       "promo promo"
       "topbar topbar"
       "board status"
+      "board stage"
       "board abilities"
       "board climb"
       "board controls"
