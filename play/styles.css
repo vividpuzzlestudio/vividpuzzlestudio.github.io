@@ -246,6 +246,7 @@ h1.title-ja {
 
 .rogue-boss-preview-chip {
   border-color: #b94848;
+  border-left-color: #b94848;
   background: #fff0ed;
 }
 
@@ -442,6 +443,64 @@ h1.title-ja {
   min-height: 30px;
   white-space: pre-line;
   font-size: clamp(8px, 2.2vw, 11px);
+}
+
+#difficultyDisplay.is-rogue-run {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 5px;
+  min-height: 42px;
+  white-space: normal;
+  overflow: visible;
+  font-size: 11px;
+}
+
+.difficulty-rogue-mode {
+  min-width: 0;
+  color: #5f4a84;
+  font-size: 10px;
+  font-weight: 1000;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.difficulty-rogue-stage {
+  grid-row: 1 / 3;
+  grid-column: 2;
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 30px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: #20252b;
+  color: #fffdfa;
+  font-size: 11px;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.difficulty-rogue-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  min-width: 0;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.difficulty-rogue-chips span {
+  max-width: 100%;
+  padding: 2px 4px;
+  border-radius: 999px;
+  background: rgba(28, 127, 118, .1);
+  color: #17564f;
+  font-size: 8.5px;
+  font-weight: 900;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .board-wrap {
@@ -2750,15 +2809,69 @@ h1.title-ja {
 
 .rogue-run-progress {
   margin: 0 0 10px;
-  padding: 8px 10px;
+  padding: 9px 10px;
   border: 2px solid #20252b;
   border-radius: 8px;
   background:
-    linear-gradient(135deg, rgba(248, 189, 85, .24), rgba(122, 88, 181, .16)),
+    linear-gradient(135deg, rgba(248, 189, 85, .18), rgba(122, 88, 181, .12)),
     #fffdfa;
   color: #20252b;
+}
+
+.rogue-progress-head {
+  display: block;
+}
+
+.rogue-progress-head strong {
+  min-width: 0;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 1000;
+}
+
+.rogue-progress-track {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.rogue-progress-step {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: 28px;
+  border: 1px solid rgba(32, 37, 43, .18);
+  border-radius: 999px;
+  background: rgba(255, 253, 250, .72);
+  color: #8a8178;
+  font-size: 11px;
+  font-weight: 1000;
+}
+
+.rogue-progress-step.is-complete {
+  border-color: rgba(32, 37, 43, .72);
+  background: #20252b;
+  color: #fffdfa;
+}
+
+.rogue-progress-step.is-current {
+  border-color: #e4572e;
+  background: #e4572e;
+  color: #fffdfa;
+  box-shadow: 0 0 0 3px rgba(228, 87, 46, .18);
+}
+
+.rogue-progress-step.is-boss {
+  border-radius: 8px;
+  font-size: 10px;
+}
+
+.rogue-progress-step.is-boss.is-current {
+  border-color: #b94848;
+  background: linear-gradient(135deg, #c63f3f, #8e315f);
+  box-shadow: 0 0 0 3px rgba(185, 72, 72, .18);
 }
 
 .rogue-next-preview {
@@ -2767,7 +2880,7 @@ h1.title-ja {
   border: 2px solid rgba(32, 37, 43, .88);
   border-radius: 8px;
   background:
-    linear-gradient(135deg, rgba(255, 253, 250, .94), rgba(239, 246, 241, .92)),
+    linear-gradient(135deg, rgba(255, 253, 250, .98), rgba(238, 247, 245, .82)),
     #fffdfa;
   box-shadow: 0 7px 18px rgba(32, 37, 43, .09);
 }
@@ -2787,7 +2900,7 @@ h1.title-ja {
 }
 
 .rogue-next-preview-head span {
-  color: #7a58b5;
+  color: #1c7f76;
   text-transform: uppercase;
 }
 
@@ -2809,11 +2922,12 @@ h1.title-ja {
   display: grid;
   gap: 1px;
   max-width: 100%;
-  padding: 6px 9px;
-  border: 1px solid rgba(122, 88, 181, .28);
+  padding: 6px 9px 6px 8px;
+  border: 1px solid rgba(28, 127, 118, .24);
+  border-left: 4px solid #1c7f76;
   border-radius: 8px;
-  background: rgba(122, 88, 181, .08);
-  color: #4f3388;
+  background: rgba(255, 253, 250, .86);
+  color: #174f49;
 }
 
 .rogue-gimmick-chip strong,
@@ -2828,7 +2942,7 @@ h1.title-ja {
 }
 
 .rogue-gimmick-chip small {
-  color: #67527f;
+  color: #55706b;
   font-size: 10px;
   font-weight: 800;
   line-height: 1.2;
@@ -2886,7 +3000,7 @@ h1.title-ja {
 
 .rogue-result-abilities {
   margin: 0 0 10px;
-  padding: 8px 10px;
+  padding: 8px 10px 9px;
   border: 1px solid #ddd6c8;
   border-radius: 8px;
   background: #fffdfa;
@@ -2894,7 +3008,9 @@ h1.title-ja {
 
 .rogue-current-abilities {
   margin-bottom: 10px;
-  background: linear-gradient(135deg, rgba(122, 88, 181, .07), rgba(248, 189, 85, .09)), #fffdfa;
+  background:
+    linear-gradient(135deg, rgba(255, 253, 250, .96), rgba(250, 243, 229, .9)),
+    #fffdfa;
 }
 
 .rogue-result-abilities strong {
@@ -2945,6 +3061,10 @@ h1.title-ja {
   font-size: 11px;
   font-weight: 800;
   line-height: 1.4;
+}
+
+.modal .rogue-current-ability-detail {
+  margin: 7px 0 0;
 }
 
 .rogue-current-ability-detail[hidden] {

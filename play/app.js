@@ -1017,8 +1017,9 @@ function addScore(points) {
 }
 
 function correctInputPoints() {
-  const base = streak >= 10 ? 20 : streak >= 5 ? 15 : 10;
-  return hasRogueAbility("comboBonus") ? base + 5 : base;
+  const streakBonus = Math.min(40, Math.floor(streak / 5) * 5);
+  const base = 10 + streakBonus;
+  return hasRogueAbility("comboBonus") ? base + 10 : base;
 }
 
 function highlightNumber() {
@@ -3607,6 +3608,30 @@ function difficultyDisplayLabel() {
   return currentDailyKey ? t("dailyPrefix", { label }) : label;
 }
 
+function rogueDifficultyDisplayHtml() {
+  const plan = currentRogueStagePlan();
+  const stageNumber = rogueRunStage || 1;
+  const regularStages = rogueRegularStageCount();
+  const stageText = plan?.boss
+    ? "BOSS"
+    : `${Math.min(stageNumber, regularStages)}/${regularStages}`;
+  const gimmickEntries = plan?.boss
+    ? [{ label: t("rogueBossName"), count: 1 }]
+    : [...rogueGimmickCounts(plan?.gimmicks || [])].map(([gimmick, count]) => ({
+      label: rogueGimmickTitle(gimmick),
+      count,
+    }));
+  const chips = gimmickEntries.length
+    ? gimmickEntries.slice(0, 2).map((entry) => `<span>${entry.label}${entry.count > 1 ? ` x${entry.count}` : ""}</span>`).join("")
+    : `<span>${plan?.nameKey ? t(plan.nameKey) : t("roguePreviewNoGimmick")}</span>`;
+  const extraCount = Math.max(0, gimmickEntries.length - 2);
+  return `
+    <span class="difficulty-rogue-mode">Rogue</span>
+    <span class="difficulty-rogue-stage">${stageText}</span>
+    <span class="difficulty-rogue-chips">${chips}${extraCount ? `<span>+${extraCount}</span>` : ""}</span>
+  `;
+}
+
 function difficultyResultLabel() {
   if (currentAdventureStage) {
     const label = currentAdventurePractice
@@ -3707,6 +3732,7 @@ async function continueRogueBossBattle() {
     elapsedMs: currentElapsedMs(),
     mistakes,
     totalMistakes,
+    streak,
     undoUsed,
     reviveUsed,
   };
@@ -3950,6 +3976,35 @@ function renderRogueNextPreview(isInitial) {
   `;
 }
 
+function renderRogueRunProgress(isInitial) {
+  const nextStage = rogueNextStageNumber(isInitial);
+  const totalStages = rogueStageCount();
+  const regularStages = rogueRegularStageCount();
+  const plan = rogueStagePlanAt(nextStage);
+  const stageTitle = rogueStageDisplayLabel(nextStage, plan);
+  const steps = Array.from({ length: totalStages }, (_, index) => {
+    const stageNumber = index + 1;
+    const stagePlan = rogueStagePlanAt(stageNumber);
+    const isBoss = Boolean(stagePlan?.boss);
+    const classes = ["rogue-progress-step"];
+    if (stageNumber < nextStage) classes.push("is-complete");
+    if (stageNumber === nextStage) classes.push("is-current");
+    if (stageNumber > nextStage) classes.push("is-locked");
+    if (isBoss) classes.push("is-boss");
+    const label = isBoss ? "BOSS" : String(stageNumber);
+    return `<span class="${classes.join(" ")}" aria-label="${rogueStageDisplayLabel(stageNumber, stagePlan)}">${label}</span>`;
+  }).join("");
+  const progressLabel = plan?.boss
+    ? t("rogueBossStage", { name: rogueStagePlanName(plan) })
+    : t("rogueRunStage", { current: Math.min(nextStage, regularStages), total: regularStages });
+  rogueRunProgress.innerHTML = `
+    <div class="rogue-progress-head">
+      <strong>${progressLabel}</strong>
+    </div>
+    <div class="rogue-progress-track" aria-label="${stageTitle}">${steps}</div>
+  `;
+}
+
 function resetRogueRunState() {
   rogueRunActive = false;
   rogueRunStage = 0;
@@ -3971,9 +4026,7 @@ function showRogueRewardDialog() {
   const rewards = chooseRogueRewards();
   rogueRewardTitle.textContent = t("rogueRewardTitle");
   rogueRewardIntro.textContent = isInitial ? t("rogueRewardIntroStart") : t("rogueRewardIntro");
-  rogueRunProgress.textContent = isInitial
-    ? t("rogueInitialPower")
-    : t("rogueStageClear", { current: rogueRunStage });
+  renderRogueRunProgress(isInitial);
   const currentAbilityEntries = rogueAbilitySummaryEntries();
   rogueCurrentAbilities.innerHTML = `<strong>${t("rogueAbilities")}</strong><div></div><p class="rogue-current-ability-detail" hidden></p>`;
   const currentAbilityList = rogueCurrentAbilities.querySelector("div");
@@ -4826,12 +4879,17 @@ function render() {
   renderRogueAbilityPanel();
   renderNumberClimbPanel();
   renderRogueBossPanel();
-  difficultyEl.textContent = difficultyDisplayLabel();
+  if (isRogueRunMode() && rogueRunActive) {
+    difficultyEl.innerHTML = rogueDifficultyDisplayHtml();
+  } else {
+    difficultyEl.textContent = difficultyDisplayLabel();
+  }
   difficultyEl.classList.toggle("is-daily", Boolean(currentDailyKey));
   difficultyEl.classList.toggle("is-adventure", Boolean(currentAdventureStage));
+  difficultyEl.classList.toggle("is-rogue-run", isRogueRunMode() && rogueRunActive);
   difficultyEl.classList.toggle("is-long", currentDifficulty === "extreme");
   mistakeEl.textContent = `${remainingLives()} / ${MAX_LIVES}`;
-  const statLabels = document.querySelectorAll(".status-panel .stat span");
+  const statLabels = document.querySelectorAll(".status-panel > .stat > span");
   const canToggleScoreCard = shouldShowRemainingCells();
   const showingRemaining = canToggleScoreCard && !showScoreCard;
   if (statLabels[3]) statLabels[3].textContent = showingRemaining ? t("remaining") : t("score");
@@ -5456,7 +5514,7 @@ function applyLocale() {
   recordButton.textContent = t("showRecords");
   newGameButton.setAttribute("aria-label", t("chooseDifficulty"));
 
-  const statLabels = document.querySelectorAll(".status-panel .stat span");
+  const statLabels = document.querySelectorAll(".status-panel > .stat > span");
   [t("difficultyLabel"), t("time"), t("mistakes"), t("score")].forEach((text, index) => {
     if (statLabels[index]) statLabels[index].textContent = text;
   });
@@ -6040,7 +6098,7 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     lightningPhase = "idle";
     currentDailyKey = currentAdventureStage ? null : nextDailyKey;
     if (seed !== null) randomSource = seededRandom(seed);
-    if (adventureStage?.itemMode === "growingMines" || isShiftingCagesMode()) {
+    if (adventureStage?.itemMode === "growingMines") {
       generateCageOnlyUniquePuzzle(config);
     } else if (config.loose) {
       generateLoosePuzzle(config);
@@ -6091,7 +6149,7 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     elapsedMs = initialElapsedMs;
     startTime = 0;
     showScoreCard = false;
-    streak = 0;
+    streak = bossContinuation?.streak ?? 0;
     activeNumber = null;
     noteMode = false;
     undoStack = [];
