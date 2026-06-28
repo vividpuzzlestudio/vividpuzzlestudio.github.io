@@ -176,7 +176,7 @@ const TEXT = {
       rogueAbilityHeartPlus: "ハート強化",
       rogueAbilityHeartPlusHelp: "ハートの回復量が1増える",
       rogueAbilityHeartTime: "ハート時計",
-      rogueAbilityHeartTimeHelp: "ハートは時間も10秒回復させる",
+      rogueAbilityHeartTimeHelp: "ハートは時間も30秒回復させる",
       rogueAbilityHintSingle: "確定ヒント",
       rogueAbilityHintSingleHelp: "ヒントの効果が2択から1択になる",
       rogueAbilityHintExpand: "広域ヒント",
@@ -226,7 +226,7 @@ const TEXT = {
       roguePreviewChaser: "リアルタイム追跡",
       roguePreviewStriker: "一直線に突進",
       rogueHeartBoost: "ハート ライフ {n}回復！",
-      rogueHeartTime: "時間 10秒回復！",
+      rogueHeartTime: "時間 30秒回復！",
       rogueMineBlocked: "地雷 不発！",
       rogueHintSingle: "ヒント {n}マス 確定！ +30",
       hintNoiseSpread: "ノイズ発生！ ヒント候補が乱れます",
@@ -435,7 +435,7 @@ const TEXT = {
       rogueAbilityHeartPlus: "Stronger Hearts",
       rogueAbilityHeartPlusHelp: "Hearts restore 1 extra life",
       rogueAbilityHeartTime: "Heart Clock",
-      rogueAbilityHeartTimeHelp: "Hearts also restore 10 seconds",
+      rogueAbilityHeartTimeHelp: "Hearts also restore 30 seconds",
       rogueAbilityHintSingle: "Certain Hint",
       rogueAbilityHintSingleHelp: "Hints narrow from 2 choices to 1",
       rogueAbilityHintExpand: "Wide Hint",
@@ -485,7 +485,7 @@ const TEXT = {
       roguePreviewChaser: "Real-time pursuit",
       roguePreviewStriker: "Straight-line rush",
       rogueHeartBoost: "Heart restored {n} lives!",
-      rogueHeartTime: "Restored 10 seconds!",
+      rogueHeartTime: "Restored 30 seconds!",
       rogueMineBlocked: "Mine fizzled!",
       rogueHintSingle: "Hint confirmed {n} cells! +30",
       hintNoiseSpread: "Noise spread! Hint candidates are unstable",
@@ -5527,7 +5527,7 @@ function triggerItem(index) {
     if (recovered === 0) addScore(30);
     boostHeartDeadline();
     if (hasRogueAbility("heartTime") && adventureTimeLimitMs) {
-      rewindElapsed(10000);
+      rewindElapsed(30000);
       showComboToast(t("rogueHeartTime"), "combo-toast-normal");
     }
     message(`Heart restored ${recovered} life.`);
