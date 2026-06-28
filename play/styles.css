@@ -696,22 +696,25 @@ h1.title-ja {
 
 .cell.hint-noise-zone {
   background:
-    repeating-linear-gradient(
-      135deg,
-      rgba(122, 88, 181, .14) 0 3px,
-      rgba(255, 253, 250, .05) 3px 7px
-    ),
-    #f3edf9;
+    radial-gradient(circle at 24% 28%, rgba(122, 88, 181, .24) 0 2px, transparent 3px),
+    radial-gradient(circle at 72% 64%, rgba(58, 150, 169, .18) 0 2px, transparent 3px),
+    radial-gradient(circle at 42% 76%, rgba(122, 88, 181, .14) 0 3px, transparent 4px),
+    radial-gradient(circle at 82% 26%, rgba(122, 88, 181, .16) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 18% 72%, rgba(58, 150, 169, .13) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 55% 46%, rgba(122, 88, 181, .1) 0 1.5px, transparent 2.5px),
+    #f4eff8;
 }
 
 .cell.hint-noise-zone.selected {
   background:
-    repeating-linear-gradient(
-      135deg,
-      rgba(122, 88, 181, .18) 0 3px,
-      rgba(255, 253, 250, .08) 3px 7px
-    ),
+    radial-gradient(circle at 24% 28%, rgba(122, 88, 181, .32) 0 2px, transparent 3px),
+    radial-gradient(circle at 72% 64%, rgba(58, 150, 169, .24) 0 2px, transparent 3px),
+    radial-gradient(circle at 42% 76%, rgba(122, 88, 181, .2) 0 3px, transparent 4px),
+    radial-gradient(circle at 82% 26%, rgba(122, 88, 181, .22) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 18% 72%, rgba(58, 150, 169, .18) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 55% 46%, rgba(122, 88, 181, .15) 0 1.5px, transparent 2.5px),
     #eadbff;
+  box-shadow: inset 0 0 0 3px rgba(122, 88, 181, .2);
 }
 
 .cell.effect-block-complete {
@@ -1558,40 +1561,6 @@ h1.title-ja {
     radial-gradient(circle at 32% 28%, rgba(255, 255, 255, .32) 0 13%, transparent 15%),
     #20252b;
   pointer-events: none;
-}
-
-.hint-noise-marker {
-  position: absolute;
-  z-index: 7;
-  right: 3px;
-  bottom: 3px;
-  width: 18px;
-  height: 14px;
-  opacity: .78;
-  pointer-events: none;
-}
-
-.hint-noise-marker::before,
-.hint-noise-marker::after {
-  content: "";
-  position: absolute;
-  left: 1px;
-  right: 1px;
-  height: 5px;
-  border: 2px solid #7a58b5;
-  border-left: 0;
-  border-right: 0;
-  border-bottom: 0;
-  border-radius: 50% 50% 0 0;
-}
-
-.hint-noise-marker::before {
-  top: 1px;
-}
-
-.hint-noise-marker::after {
-  top: 6px;
-  opacity: .62;
 }
 
 .mine-note-marker {

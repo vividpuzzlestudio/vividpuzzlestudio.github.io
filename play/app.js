@@ -28,7 +28,7 @@ const ADVENTURE_STAGES = {
   chaser: { difficulty: "hard", itemMode: "chaser", itemCount: 10, timeLimitMs: 300000, chaserIntervalMs: 2500, chaserStunMs: 5000 },
   striker: { difficulty: "hard", itemMode: "striker", itemCount: 10, timeLimitMs: 300000, strikerIntervalMs: 850, strikerStunMs: 3500 },
   lightning: { difficulty: "hard", itemMode: "lightning", itemCount: 10, timeLimitMs: 300000, lightningIntervalMs: 3200, lightningWarnMs: 1400, lightningDangerMs: 360, lightningStrikeMs: 520 },
-  hintNoise: { difficulty: "hard", itemMode: "hintNoise", itemCount: 16, timeLimitMs: 300000, hintNoiseTurns: 4, hintNoiseInitialCount: 8, hintNoiseInterval: 3, hintNoiseCount: 4 },
+  hintNoise: { difficulty: "hard", itemMode: "hintNoise", itemCount: 16, timeLimitMs: 300000, hintNoiseTurns: 6, hintNoiseInitialCount: 8, hintNoiseInterval: 3, hintNoiseCount: 4 },
 };
 const PATROL_GUARDIAN_COUNT = 2;
 const SLEEPER_COUNT = 3;
@@ -3009,13 +3009,6 @@ function renderBoard() {
       cell.append(marker);
     }
 
-    if (hintNoiseTurns.has(index) && value === EMPTY && canRevealCellInfo) {
-      const marker = document.createElement("span");
-      marker.className = "hint-noise-marker";
-      marker.setAttribute("aria-hidden", "true");
-      cell.append(marker);
-    }
-
     if (isJammedCage(cageId) && index === jammerMarkerCellFor(cageId)) {
       const marker = document.createElement("span");
       marker.className = "jammer-marker";
@@ -3928,7 +3921,7 @@ function rogueRulesFromGimmicks(gimmicks, stageIndex) {
   }
   if (count("hintNoise")) {
     rules.hintNoise = {
-      hintNoiseTurns: 4,
+      hintNoiseTurns: 6,
       hintNoiseInitialCount: Math.min(12, 8 + (count("hintNoise") - 1) * 2),
       hintNoiseInterval: 3,
       hintNoiseCount: Math.min(6, 4 + (count("hintNoise") - 1)),
@@ -4193,7 +4186,7 @@ function isHintNoiseMode() {
 }
 
 function hintNoiseDuration() {
-  return adventureRuleConfig("hintNoise").hintNoiseTurns || 4;
+  return adventureRuleConfig("hintNoise").hintNoiseTurns || 6;
 }
 
 function hintNoiseNaturalInterval() {
@@ -4208,10 +4201,11 @@ function hintNoiseInitialCount() {
   return adventureRuleConfig("hintNoise").hintNoiseInitialCount || 8;
 }
 
-function hintChoicesForCell(cell) {
+function hintChoicesForCell(cell, forceNoise = false) {
   const correct = solution[cell];
   const wrongPool = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9].filter((n) => n !== correct));
-  if (!isHintNoiseMode() || !hintNoiseTurns.has(cell)) {
+  const noisy = forceNoise || hintNoiseTurns.has(cell);
+  if (!isHintNoiseMode() || !noisy) {
     return hasRogueAbility("hintSingle") ? [correct] : shuffle([correct, wrongPool[0]]);
   }
   const wrongCount = hasRogueAbility("hintSingle") ? 1 : 2;
@@ -5542,8 +5536,9 @@ function triggerItem(index) {
 
   if (item === "hint") {
     const targets = rogueHintTargetCells(index);
+    const noisyHintSource = hintNoiseTurns.has(index);
     targets.forEach((cell) => {
-      hinted.set(cell, hintChoicesForCell(cell));
+      hinted.set(cell, hintChoicesForCell(cell, noisyHintSource));
       notes.delete(cell);
       mineNotes.delete(cell);
       flashEffect(cell, "effect-hint-target", 700);
