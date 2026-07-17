@@ -85,6 +85,7 @@ const TEXT = {
       pausedText: "ゲームを一時停止しています。",
       resume: "再開する",
       resetTitle: "ゲームをリセットしますか？",
+      rogueExitWarning: "戻るとローグランは終了します",
       continue: "続ける",
       restart: "最初から遊ぶ",
       dailyChallenge: "今日のチャレンジ",
@@ -344,6 +345,7 @@ const TEXT = {
       pausedText: "The game is paused.",
       resume: "Resume",
       resetTitle: "Reset this game?",
+      rogueExitWarning: "Returning will end your Rogue Run",
       continue: "Continue",
       restart: "Restart",
       dailyChallenge: "Daily Challenge",
@@ -637,6 +639,21 @@ const ROGUE_GIMMICK_PREVIEW = {
 const ITEM_SELECTION_KEY = "killer-item-sudoku-item-selection-v1";
 const ADVENTURE_PRACTICE_KEY = "killer-item-sudoku-adventure-practice-v1";
 const MIN_MAX_SUM_CACHE = new Map();
+const REMAINING_SUM_CACHE = new Map();
+const VERY_HARD_TEMPLATES = [
+  {
+    solution: [6, 5, 2, 7, 1, 3, 9, 4, 8, 1, 7, 3, 9, 4, 8, 5, 6, 2, 4, 9, 8, 5, 6, 2, 7, 1, 3, 8, 4, 5, 6, 2, 7, 1, 3, 9, 3, 1, 9, 4, 8, 5, 6, 2, 7, 2, 6, 7, 1, 3, 9, 4, 8, 5, 9, 3, 4, 8, 5, 6, 2, 7, 1, 7, 2, 1, 3, 9, 4, 8, 5, 6, 5, 8, 6, 2, 7, 1, 3, 9, 4],
+    cages: [[53, 52, 62], [26, 25, 17, 8], [19, 10], [77, 76], [3, 4, 13], [78, 79], [24, 15], [73, 64], [80, 71], [58, 57, 67], [54, 55], [48, 47, 56], [27, 36], [28, 37], [50, 49], [72, 63], [33, 42], [16, 7, 6], [60, 51, 69], [40, 41], [44, 35], [1, 2, 0], [70, 61], [46, 45], [34, 43], [21, 30], [66, 65], [75, 74], [29, 20], [22, 23], [59, 68], [38, 39], [18, 9], [31, 32], [5, 14], [12, 11]],
+  },
+  {
+    solution: [4, 3, 1, 5, 6, 8, 2, 7, 9, 8, 5, 6, 2, 9, 7, 3, 4, 1, 7, 2, 9, 3, 1, 4, 5, 8, 6, 2, 1, 4, 6, 8, 3, 9, 5, 7, 3, 6, 8, 9, 7, 5, 1, 2, 4, 5, 9, 7, 1, 4, 2, 6, 3, 8, 6, 7, 5, 4, 2, 9, 8, 1, 3, 1, 8, 3, 7, 5, 6, 4, 9, 2, 9, 4, 2, 8, 3, 1, 7, 6, 5],
+    cages: [[38, 39], [66, 75], [4, 5, 3], [25, 24], [27, 36], [52, 61], [74, 65], [56, 55], [16, 15], [1, 10, 0], [8, 17], [79, 78], [2, 11], [70, 71, 80], [43, 42], [50, 51], [60, 69, 59], [26, 35], [54, 45, 46], [12, 21, 30], [22, 23], [18, 9], [47, 48, 57], [40, 41], [44, 53, 62], [68, 67], [32, 31], [33, 34], [76, 77], [63, 64, 73, 72], [29, 28, 37], [13, 14], [49, 58], [19, 20], [6, 7]],
+  },
+  {
+    solution: [9, 2, 6, 5, 4, 1, 8, 7, 3, 8, 3, 7, 2, 9, 6, 4, 1, 5, 4, 5, 1, 3, 8, 7, 9, 6, 2, 3, 1, 8, 7, 2, 9, 5, 4, 6, 5, 6, 4, 1, 3, 8, 2, 9, 7, 2, 7, 9, 6, 5, 4, 3, 8, 1, 1, 4, 3, 8, 7, 2, 6, 5, 9, 7, 8, 2, 9, 6, 5, 1, 3, 4, 6, 9, 5, 4, 1, 3, 7, 2, 8],
+    cages: [[49, 58, 67], [51, 52, 60], [35, 34], [73, 74], [55, 64], [26, 17, 8], [36, 37], [62, 53, 71], [77, 78], [22, 21, 20], [11, 10, 19], [76, 75], [80, 79], [23, 32, 31], [45, 54], [44, 43], [68, 69], [6, 7], [29, 28, 38], [59, 50], [70, 61], [72, 63], [18, 9, 27], [47, 46, 56], [66, 65], [14, 13], [15, 16, 24, 25], [39, 30], [0, 1], [48, 57], [40, 41], [42, 33], [2, 3, 12], [4, 5]],
+  },
+];
 
 const boardEl = document.querySelector("#board");
 const appShell = document.querySelector(".app-shell");
@@ -1071,6 +1088,16 @@ function shouldObscureBoard() {
 
 function syncBoardObscured() {
   appShell?.classList.toggle("board-obscured", shouldObscureBoard());
+}
+
+function syncExitDangerState() {
+  const isDangerousExit = isRogueRunMode() && rogueRunActive && !over;
+  [pauseDifficultyButton, confirmResetButton].forEach((button) => {
+    button.classList.toggle("danger-dialog-button", isDangerousExit);
+    button.innerHTML = isDangerousExit
+      ? `<span>${t("chooseDifficulty")}</span><small>${t("rogueExitWarning")}</small>`
+      : t("chooseDifficulty");
+  });
 }
 
 function moveSelectionBy(rowDelta, colDelta) {
@@ -2318,11 +2345,65 @@ function parallelLinePermutationRisk(puzzleValues, cageValues) {
   return false;
 }
 
+function normalizedCageShape(cage) {
+  const points = cage.cells.map((cell) => [rowOf(cell), colOf(cell)]);
+  const transforms = [
+    ([row, col]) => [row, col],
+    ([row, col]) => [col, -row],
+    ([row, col]) => [-row, -col],
+    ([row, col]) => [-col, row],
+    ([row, col]) => [row, -col],
+    ([row, col]) => [-row, col],
+    ([row, col]) => [col, row],
+    ([row, col]) => [-col, -row],
+  ];
+
+  return transforms
+    .map((transform) => {
+      const mapped = points.map(transform);
+      const minRow = Math.min(...mapped.map(([row]) => row));
+      const minCol = Math.min(...mapped.map(([, col]) => col));
+      return mapped
+        .map(([row, col]) => `${row - minRow},${col - minCol}`)
+        .sort()
+        .join(";");
+    })
+    .sort()[0];
+}
+
+function repeatedCageShapeSumRisk(cageValues) {
+  const groups = new Map();
+
+  cageValues.forEach((cage) => {
+    if (cage.cells.length < 2 || cage.cells.length > 4) return;
+    const key = `${cage.cells.length}:${cage.sum}:${normalizedCageShape(cage)}`;
+    const group = groups.get(key) || {
+      count: 0,
+      bands: new Set(),
+      stacks: new Set(),
+      boxes: new Set(),
+    };
+    group.count += 1;
+    cage.cells.forEach((cell) => {
+      group.bands.add(Math.floor(rowOf(cell) / BOX));
+      group.stacks.add(Math.floor(colOf(cell) / BOX));
+      group.boxes.add(Math.floor(rowOf(cell) / BOX) * BOX + Math.floor(colOf(cell) / BOX));
+    });
+    groups.set(key, group);
+  });
+
+  return [...groups.values()].some((group) => (
+    group.count >= 5
+    || (group.count >= 4 && (group.bands.size <= 2 || group.stacks.size <= 2))
+  ));
+}
+
 function puzzlePatternRisk(puzzleValues, cageValues) {
   return repeatedBoxPatternRisk(puzzleValues, cageValues)
     || rowPairCageSwapRisk(puzzleValues, cageValues)
     || colPairCageSwapRisk(puzzleValues, cageValues)
-    || parallelLinePermutationRisk(puzzleValues, cageValues);
+    || parallelLinePermutationRisk(puzzleValues, cageValues)
+    || repeatedCageShapeSumRisk(cageValues);
 }
 
 function candidatesForCell(cell, grid, rowMasks, colMasks, boxMasks, solverCages, solverCellToCage) {
@@ -2337,11 +2418,13 @@ function candidatesForCell(cell, grid, rowMasks, colMasks, boxMasks, solverCages
   for (let value = 1; value <= SIZE; value += 1) {
     const bit = 1 << value;
     if (blocked & bit) continue;
+    cage.used |= bit;
     cage.total += value;
     cage.empty -= 1;
     if (cageCanStillMatch(cage)) result.push(value);
     cage.empty += 1;
     cage.total -= value;
+    cage.used &= ~bit;
   }
 
   return result;
@@ -2353,7 +2436,37 @@ function cageCanStillMatch(cage) {
   if (cage.empty === 0) return remaining === 0;
 
   const range = minMaxRemainingSum(cage.used, cage.empty);
-  return range !== null && remaining >= range.min && remaining <= range.max;
+  return range !== null
+    && remaining >= range.min
+    && remaining <= range.max
+    && remainingSumIsPossible(cage.used, cage.empty, remaining);
+}
+
+function remainingSumIsPossible(usedMask, count, sum) {
+  if (sum < 0) return false;
+  const sums = possibleRemainingSums(usedMask, count);
+  return sums.has(sum);
+}
+
+function possibleRemainingSums(usedMask, count) {
+  const key = `${usedMask}:${count}`;
+  if (REMAINING_SUM_CACHE.has(key)) return REMAINING_SUM_CACHE.get(key);
+
+  const sums = new Set();
+  const collect = (nextValue, remainingCount, total) => {
+    if (remainingCount === 0) {
+      sums.add(total);
+      return;
+    }
+    for (let value = nextValue; value <= SIZE; value += 1) {
+      if (usedMask & (1 << value)) continue;
+      collect(value + 1, remainingCount - 1, total + value);
+    }
+  };
+
+  collect(1, count, 0);
+  REMAINING_SUM_CACHE.set(key, sums);
+  return sums;
 }
 
 function minMaxRemainingSum(usedMask, count) {
@@ -2480,9 +2593,104 @@ function oneMoveForcedSingles(puzzleValues, cageValues) {
   return total + maxSingles * 4;
 }
 
+function generateVeryHardTemplatePuzzle() {
+  const template = VERY_HARD_TEMPLATES[Math.floor(random() * VERY_HARD_TEMPLATES.length)];
+  const transform = Math.floor(random() * 8);
+  const digitTargets = shuffle(Array.from({ length: SIZE }, (_, index) => index + 1));
+  const digitMap = new Map(digitTargets.map((value, index) => [index + 1, value]));
+  const cellMap = new Map();
+
+  for (let cell = 0; cell < CELL_COUNT; cell += 1) {
+    const row = rowOf(cell);
+    const col = colOf(cell);
+    const [mappedRow, mappedCol] = transformGridPoint(row, col, transform);
+    const mapped = indexOf(mappedRow, mappedCol);
+    cellMap.set(cell, mapped);
+  }
+
+  solution = Array(CELL_COUNT).fill(EMPTY);
+  template.solution.forEach((value, cell) => {
+    solution[cellMap.get(cell)] = digitMap.get(value);
+  });
+  puzzle = Array(CELL_COUNT).fill(EMPTY);
+  cages = template.cages.map((templateCells, id) => {
+    const cells = templateCells.map((cell) => cellMap.get(cell));
+    return {
+      id,
+      cells,
+      sum: cells.reduce((total, cell) => total + solution[cell], 0),
+    };
+  });
+}
+
+function transformGridPoint(row, col, transform) {
+  switch (transform) {
+    case 0: return [row, col];
+    case 1: return [col, SIZE - 1 - row];
+    case 2: return [SIZE - 1 - row, SIZE - 1 - col];
+    case 3: return [SIZE - 1 - col, row];
+    case 4: return [row, SIZE - 1 - col];
+    case 5: return [SIZE - 1 - row, col];
+    case 6: return [col, row];
+    default: return [SIZE - 1 - col, SIZE - 1 - row];
+  }
+}
+
+function generateUncheckedCageOnlyPuzzle(config) {
+  const totalDeadline = Date.now() + 900;
+  const maxAttempts = 48;
+  let best = null;
+
+  for (let attempt = 0; attempt < maxAttempts && Date.now() < totalDeadline; attempt += 1) {
+    solution = generateSolution();
+    const candidatePuzzle = makePuzzle(config.blanks);
+    const candidateCages = makeCages("extreme");
+    if (candidateCages.some((cage) => cage.cells.length === 1)) continue;
+    if (puzzlePatternRisk(candidatePuzzle, candidateCages)) continue;
+
+    const scoreValue = puzzleDifficultyScore(candidatePuzzle, candidateCages);
+    if (!best || scoreValue > best.score) {
+      best = {
+        score: scoreValue,
+        solution: [...solution],
+        puzzle: candidatePuzzle,
+        cages: candidateCages,
+      };
+    }
+    if (attempt >= 7 && best) break;
+  }
+
+  if (!best) {
+    const fallbackDeadline = Date.now() + 700;
+    for (let attempt = 0; Date.now() < fallbackDeadline || !best; attempt += 1) {
+      solution = generateSolution();
+      const candidatePuzzle = makePuzzle(config.blanks);
+      const candidateCages = makeCages("compact");
+      if (candidateCages.some((cage) => cage.cells.length === 1)) continue;
+      if (attempt < 24 && puzzlePatternRisk(candidatePuzzle, candidateCages)) continue;
+      best = {
+        score: puzzleDifficultyScore(candidatePuzzle, candidateCages),
+        solution: [...solution],
+        puzzle: candidatePuzzle,
+        cages: candidateCages,
+      };
+      break;
+    }
+  }
+
+  solution = best.solution;
+  puzzle = best.puzzle;
+  cages = best.cages;
+}
+
 function generateUniquePuzzle(config) {
+  const isCageOnly = config.blanks >= 81;
+  if (isCageOnly) {
+    generateUncheckedCageOnlyPuzzle(config);
+    return;
+  }
   const totalDeadline = Date.now() + 3600;
-  const maxAttempts = config.blanks >= 81 ? 120 : 80;
+  const maxAttempts = 80;
   const targetUnique = 2;
   let best = null;
   let uniqueCount = 0;
@@ -2506,7 +2714,7 @@ function generateUniquePuzzle(config) {
     const candidateCages = makeCages("extreme");
     const hasPatternRisk = puzzlePatternRisk(candidatePuzzle, candidateCages);
     if (hasPatternRisk) continue;
-    const deadline = Math.min(totalDeadline, Date.now() + (config.blanks >= 81 ? 180 : 120));
+    const deadline = Math.min(totalDeadline, Date.now() + (isCageOnly ? 120 : 120));
     if (countSolutionsFor(candidatePuzzle, candidateCages, 2, deadline) === 1) {
       rememberCandidate(candidatePuzzle, candidateCages);
       if (uniqueCount >= targetUnique || Date.now() > totalDeadline - 1100) break;
@@ -2514,12 +2722,14 @@ function generateUniquePuzzle(config) {
   }
 
   if (!best) {
-    for (;;) {
+    const fallbackDeadline = Date.now() + (isCageOnly ? 1800 : 3600);
+    const fallbackProfiles = ["normal"];
+    for (let attempt = 0; Date.now() < fallbackDeadline; attempt += 1) {
       solution = generateSolution();
       const candidatePuzzle = makePuzzle(config.blanks);
-      const candidateCages = makeCages();
+      const candidateCages = makeCages(fallbackProfiles[attempt % fallbackProfiles.length]);
       if (puzzlePatternRisk(candidatePuzzle, candidateCages)) continue;
-      if (countSolutionsFor(candidatePuzzle, candidateCages, 2, Date.now() + 1500) === 1) {
+      if (countSolutionsFor(candidatePuzzle, candidateCages, 2, Math.min(fallbackDeadline, Date.now() + 220)) === 1) {
         rememberCandidate(candidatePuzzle, candidateCages);
         break;
       }
@@ -3005,6 +3215,13 @@ function renderBoard() {
     if (isMineSearchMode() && mineNotes.has(index) && value === EMPTY) {
       const marker = document.createElement("span");
       marker.className = "mine-note-marker";
+      marker.setAttribute("aria-hidden", "true");
+      cell.append(marker);
+    }
+
+    if (lightningSet.has(index)) {
+      const marker = document.createElement("span");
+      marker.className = `lightning-marker lightning-marker-${lightningPhase}`;
       marker.setAttribute("aria-hidden", "true");
       cell.append(marker);
     }
@@ -3981,13 +4198,15 @@ function rogueGimmickPreviewHtml(plan) {
 
 function rogueStageHudGimmickHtml(plan = currentRogueStagePlan()) {
   if (plan?.boss) {
-    return `<span class="rogue-stage-gimmick is-boss">${t("rogueBossName")}</span>`;
+    return `<button class="rogue-stage-gimmick is-boss" type="button" data-gimmick-help="${t("rogueBossPreview")}">${t("rogueBossName")}</button>`;
   }
   const entries = [...rogueGimmickCounts(plan?.gimmicks || [])];
   if (!entries.length) return `<span class="rogue-stage-gimmick is-quiet">${plan?.nameKey ? t(plan.nameKey) : t("roguePreviewNoGimmick")}</span>`;
   return entries.map(([gimmick, count]) => {
+    const info = ROGUE_GIMMICK_PREVIEW[gimmick] || {};
     const countLabel = count > 1 ? ` x${count}` : "";
-    return `<span class="rogue-stage-gimmick">${rogueGimmickTitle(gimmick)}${countLabel}</span>`;
+    const help = info.helpKey ? t(info.helpKey) : "";
+    return `<button class="rogue-stage-gimmick" type="button" data-gimmick-help="${help}">${rogueGimmickTitle(gimmick)}${countLabel}</button>`;
   }).join("");
 }
 
@@ -4018,6 +4237,7 @@ function renderRogueStagePanel() {
       <span>${steps}</span>
     </div>
     <div class="rogue-stage-gimmicks">${rogueStageHudGimmickHtml(plan)}</div>
+    <p class="rogue-stage-detail" hidden></p>
   `;
 }
 
@@ -5731,6 +5951,7 @@ function applyLocale() {
   cancelResetButton.textContent = t("continue");
   resetRetryButton.textContent = t("restart");
   confirmResetButton.textContent = t("chooseDifficulty");
+  syncExitDangerState();
 }
 
 function startTimer(options = {}) {
@@ -6011,6 +6232,7 @@ function pauseGame(showDialog = true) {
     !difficultyDialog.open &&
     !resetDialog.open
   ) {
+    syncExitDangerState();
     pauseDialog.showModal();
   }
   syncBoardObscured();
@@ -6032,6 +6254,7 @@ function showResetDialog() {
   }
   pauseGame(false);
   resetRetryButton.hidden = Boolean(currentAdventureStage);
+  syncExitDangerState();
   if (!resetDialog.open) resetDialog.showModal();
   syncBoardObscured();
 }
@@ -6049,6 +6272,7 @@ function confirmReset() {
   paused = false;
   stopTimer();
   render();
+  syncExitDangerState();
   showCurrentModeSelectionDialog();
   syncBoardObscured();
 }
@@ -6437,6 +6661,23 @@ rogueAbilityPanel.addEventListener("click", (event) => {
   }
   detail.textContent = chip.dataset.abilityHelp || "";
   detail.hidden = false;
+});
+rogueStagePanel.addEventListener("click", (event) => {
+  const chip = event.target.closest(".rogue-stage-gimmick");
+  if (!chip || chip.classList.contains("is-quiet")) return;
+  const detail = rogueStagePanel.querySelector(".rogue-stage-detail");
+  if (!detail) return;
+  const shouldClose = chip.classList.contains("is-selected") && !detail.hidden;
+  rogueStagePanel.querySelectorAll(".rogue-stage-gimmick").forEach((button) => {
+    button.classList.toggle("is-selected", !shouldClose && button === chip);
+  });
+  if (shouldClose) {
+    detail.textContent = "";
+    detail.hidden = true;
+    return;
+  }
+  detail.textContent = chip.dataset.gimmickHelp || "";
+  detail.hidden = !detail.textContent;
 });
 [difficultyDialog, adventureDialog, recordDialog, firstRunDialog, dialog, pauseDialog, resetDialog, rogueRewardDialog].forEach((dialogElement) => {
   dialogElement.addEventListener("close", syncBoardObscured);
