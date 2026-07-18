@@ -3013,6 +3013,14 @@ h1.title-ja {
 #adventureDialog .modal-body {
   max-height: calc(100svh - max(118px, calc(env(safe-area-inset-top) + 92px)));
   overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+#difficultyDialog button,
+#adventureDialog button {
+  touch-action: pan-y;
 }
 
 .modal-body {
