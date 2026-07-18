@@ -29,6 +29,7 @@ const ADVENTURE_STAGES = {
   striker: { difficulty: "hard", itemMode: "striker", itemCount: 10, timeLimitMs: 300000, strikerIntervalMs: 850, strikerStunMs: 3500 },
   lightning: { difficulty: "hard", itemMode: "lightning", itemCount: 10, timeLimitMs: 300000, lightningIntervalMs: 3200, lightningWarnMs: 1400, lightningDangerMs: 360, lightningStrikeMs: 520 },
   hintNoise: { difficulty: "hard", itemMode: "hintNoise", itemCount: 16, timeLimitMs: 300000, hintNoiseTurns: 6, hintNoiseInitialCount: 8, hintNoiseInterval: 3, hintNoiseCount: 4 },
+  blockSwap: { difficulty: "veryHard", itemMode: "blockSwap", timeLimitMs: 300000 },
 };
 const PATROL_GUARDIAN_COUNT = 2;
 const SLEEPER_COUNT = 3;
@@ -153,6 +154,8 @@ const TEXT = {
       adventureLightningHelp: "落雷範囲から逃げろ / 5分制限",
       adventureHintNoise: "ノイズゾーン",
       adventureHintNoiseHelp: "ケージ合計を隠しヒント候補を乱す / 5分制限",
+      adventureBlockSwap: "ブロックスワップ",
+      adventureBlockSwapHelp: "数字を入れ替えて盤面を完成させろ / 5分制限",
       adventureShiftingCages: "カオスケージ",
       adventureShiftingCagesHelp: "5手毎にシャッフル / 4分制限",
       adventureRogueRun: "ローグラン",
@@ -231,7 +234,7 @@ const TEXT = {
       rogueMineBlocked: "地雷 不発！",
       rogueHintSingle: "ヒント {n}マス 確定！ +30",
       hintNoiseSpread: "ノイズ発生！ ヒント候補が乱れます",
-      rogueLastCellHint: "ラストヒント {n}マス 確定！",
+      rogueLastCellHint: "ラストヒント {n}マス 発動！",
       rogueLastMinute: "残り1分！",
       mineSearchMineHelp: "踏んだらゲームオーバー",
       heartTimeHelp: "時間を回復",
@@ -413,6 +416,8 @@ const TEXT = {
       adventureLightningHelp: "Dodge lightning zones / 5-minute limit",
       adventureHintNoise: "Noise Zone",
       adventureHintNoiseHelp: "Hides cage sums and distorts hints / 5-minute limit",
+      adventureBlockSwap: "Block Swap",
+      adventureBlockSwapHelp: "Swap digits to complete the grid / 5-minute limit",
       adventureShiftingCages: "Chaos Cages",
       adventureShiftingCagesHelp: "Shuffle every 5 moves / 4-minute limit",
       adventureRogueRun: "Rogue Run",
@@ -491,7 +496,7 @@ const TEXT = {
       rogueMineBlocked: "Mine fizzled!",
       rogueHintSingle: "Hint confirmed {n} cells! +30",
       hintNoiseSpread: "Noise spread! Hint candidates are unstable",
-      rogueLastCellHint: "Last-cell hint confirmed {n} cells!",
+      rogueLastCellHint: "Last-cell hint activated for {n} cells!",
       rogueLastMinute: "1 minute left!",
       mineSearchMineHelp: "Game over if stepped on",
       heartTimeHelp: "restores time",
@@ -849,6 +854,9 @@ let strikerStunRemainingMs = 0;
 let lightningCells = [];
 let lightningPhase = "idle";
 let lightningTimerId = null;
+let blockSwapAnchor = null;
+let blockSwapMoves = 0;
+let blockSwapPointer = null;
 let noteMode = false;
 let undoStack = [];
 let undoUsed = false;
@@ -3125,6 +3133,7 @@ function placeHintNoiseItems(stage) {
 }
 
 function placeAdventureItems(stage) {
+  if (stage.itemMode === "blockSwap") return new Map();
   if (stage.itemMode === "allHint") return placeAllItems("hint");
   if (stage.itemMode === "allHeart") return placeAllItems("heart");
   if (stage.itemMode === "growingMines") return placeRandomItems("mine", stage.initialMines || 8);
@@ -3232,7 +3241,8 @@ function placeIntroItems(itemCount, firstHintCell = null) {
 function renderBoard() {
   const selectedCageId = cellToCage.get(selected);
   const blindMode = currentAdventureMode() === "blind";
-  const showPlayerMarker = Boolean(currentAdventureStage) && !blindIntroActive;
+  const blockSwapMode = isBlockSwapMode();
+  const showPlayerMarker = Boolean(currentAdventureStage) && !blindIntroActive && !blockSwapMode;
   const matchingNumber = blindMode ? null : highlightNumber();
   const patrolCells = currentPatrolCells();
   const patrolCellSet = new Set(patrolCells);
@@ -3279,7 +3289,7 @@ function renderBoard() {
     const cell = document.createElement("button");
     const jammed = isJammedCell(index);
     const cageId = cellToCage.get(index);
-    const wrongEntry = isWrongEntry(index);
+    const wrongEntry = !blockSwapMode && isWrongEntry(index);
     const canRevealCellInfo = (!blindMode || blindIntroActive || index === selected) && (!jammed || wrongEntry);
     cell.className = "cell";
     cell.type = "button";
@@ -3296,6 +3306,16 @@ function renderBoard() {
     if (index === selected) {
       cell.classList.add("selected");
       if (showPlayerMarker && remainingLives() === 1) cell.classList.add("player-low-life");
+    }
+    if (blockSwapMode && index === blockSwapAnchor) cell.classList.add("block-swap-anchor");
+    if (blockSwapMode && blockSwapAnchor !== null && index !== blockSwapAnchor && isSameBlock(index, blockSwapAnchor)) {
+      cell.classList.add("block-swap-option");
+    }
+    if (blockSwapMode && blockSwapPointer?.dragging && index === blockSwapPointer.index) {
+      cell.classList.add("block-swap-drag-source");
+    }
+    if (blockSwapMode && blockSwapPointer?.dragging && index === blockSwapPointer.target) {
+      cell.classList.add("block-swap-drag-target");
     }
     if (!blindMode && isRelated(index, selected) && index !== selected) cell.classList.add("related");
     if (!blindMode && cellToCage.get(index) === selectedCageId && index !== selected) cell.classList.add("selected-cage");
@@ -3462,6 +3482,10 @@ function renderBoard() {
 
 function selectBoardCell(index) {
   if (blindIntroActive || index < 0 || index >= CELL_COUNT) return;
+  if (isBlockSwapMode()) {
+    selectBlockSwapCell(index);
+    return;
+  }
   selected = index;
   if (checkStrikerCollision()) return;
   render();
@@ -3733,6 +3757,7 @@ function renderAdventureChoices() {
     ["striker", t("adventureStriker"), t("adventureStrikerHelp")],
     ["lightning", t("adventureLightning"), t("adventureLightningHelp")],
     ["hintNoise", t("adventureHintNoise"), t("adventureHintNoiseHelp")],
+    ["blockSwap", t("adventureBlockSwap"), t("adventureBlockSwapHelp")],
   ].forEach(([key, title, help]) => {
     const button = document.createElement("button");
     button.className = "difficulty-button adventure-button";
@@ -4069,12 +4094,55 @@ function adventureStageLabel(stageKey) {
   if (stageKey === "striker") return t("adventureStriker");
   if (stageKey === "lightning") return t("adventureLightning");
   if (stageKey === "hintNoise") return t("adventureHintNoise");
+  if (stageKey === "blockSwap") return t("adventureBlockSwap");
   if (stageKey === "shiftingCages") return t("adventureShiftingCages");
   return stageKey;
 }
 
 function currentAdventureMode() {
   return ADVENTURE_STAGES[currentAdventureStage]?.itemMode || null;
+}
+
+function isBlockSwapMode() {
+  return currentAdventureMode() === "blockSwap";
+}
+
+function blockSwapInitialEntries() {
+  return Array.from({ length: CELL_COUNT }, (_, cell) => (rowOf(cell) % BOX) * BOX + (colOf(cell) % BOX) + 1);
+}
+
+function selectBlockSwapCell(index) {
+  if (over || paused) return;
+  selected = index;
+  if (blockSwapAnchor === null) {
+    blockSwapAnchor = index;
+    render();
+    return;
+  }
+  if (index === blockSwapAnchor) {
+    blockSwapAnchor = null;
+    render();
+    return;
+  }
+  if (!isSameBlock(index, blockSwapAnchor)) {
+    blockSwapAnchor = index;
+    render();
+    return;
+  }
+
+  pushUndo();
+  undoStack[undoStack.length - 1].blockSwapAnchor = null;
+  const source = blockSwapAnchor;
+  [entries[source], entries[index]] = [entries[index], entries[source]];
+  blockSwapAnchor = null;
+  blockSwapMoves += 1;
+  flashEffect(source, "effect-cage-shift", 420);
+  flashEffect(index, "effect-cage-shift", 420);
+  if (entries.every((value, cell) => value === solution[cell])) {
+    finish(true);
+  } else {
+    render();
+  }
 }
 
 function isRogueRunMode() {
@@ -4606,6 +4674,16 @@ function hintChoicesForCell(cell, forceNoise = false) {
   return shuffle([correct, ...wrongPool.slice(0, wrongCount)]);
 }
 
+function updateHintChoices(cell, choices) {
+  const existing = hinted.get(cell);
+  if (!existing?.length) {
+    hinted.set(cell, choices);
+    return;
+  }
+  const narrowed = choices.filter((value) => existing.includes(value));
+  hinted.set(cell, narrowed.length ? narrowed : existing);
+}
+
 function spreadHintNoise(origin, targets) {
   if (!isHintNoiseMode()) return [];
   const cells = new Set([...surroundingCells(origin), ...targets]);
@@ -4681,13 +4759,13 @@ function applyRogueLastCellHints() {
     if (empty.length === 1 && !hinted.has(empty[0])) targets.add(empty[0]);
   });
   targets.forEach((cell) => {
-    hinted.set(cell, [solution[cell]]);
+    spreadHintNoise(cell, [cell]);
+    hinted.set(cell, hintNoiseTurns.has(cell) ? hintChoicesForCell(cell) : [solution[cell]]);
     notes.delete(cell);
     mineNotes.delete(cell);
     flashEffect(cell, "effect-hint-target", 700);
   });
   if (targets.size > 0) {
-    targets.forEach((cell) => spreadHintNoise(cell, [cell]));
     showComboToast(t("rogueLastCellHint", { n: targets.size }), comboLevel(targets.size));
   }
   return targets.size;
@@ -5409,6 +5487,7 @@ function remainingLives() {
 }
 
 function render() {
+  appShell?.classList.toggle("block-swap-mode", isBlockSwapMode());
   renderBoard();
   renderPad();
   renderLegend();
@@ -5488,6 +5567,8 @@ function snapshotState() {
     strikerCell,
     strikerDirection: strikerDirection ? { ...strikerDirection } : null,
     strikerStunRemainingMs: currentStrikerStunRemaining(),
+    blockSwapAnchor,
+    blockSwapMoves,
   };
 }
 
@@ -5529,6 +5610,8 @@ function restoreSnapshot(snapshot) {
   strikerDirection = snapshot.strikerDirection ? { ...snapshot.strikerDirection } : null;
   strikerStunRemainingMs = snapshot.strikerStunRemainingMs || 0;
   strikerStunnedUntil = strikerStunRemainingMs > 0 ? Date.now() + strikerStunRemainingMs : 0;
+  blockSwapAnchor = snapshot.blockSwapAnchor ?? null;
+  blockSwapMoves = snapshot.blockSwapMoves || 0;
   normalizeSleeperBlocks();
   buildCageLookups();
 }
@@ -5637,8 +5720,8 @@ function undoMove() {
 
 function renderToolRow() {
   undoButton.disabled = over || paused || blindIntroActive || undoStack.length === 0;
-  eraseButton.disabled = over || paused || blindIntroActive || (!notes.has(selected) && !mineNotes.has(selected) && !isWrongEntry(selected));
-  noteButton.disabled = over || paused || blindIntroActive;
+  eraseButton.disabled = isBlockSwapMode() || over || paused || blindIntroActive || (!notes.has(selected) && !mineNotes.has(selected) && !isWrongEntry(selected));
+  noteButton.disabled = isBlockSwapMode() || over || paused || blindIntroActive;
   noteButton.classList.toggle("is-active", noteMode);
   noteButton.setAttribute("aria-pressed", noteMode ? "true" : "false");
 }
@@ -5654,7 +5737,7 @@ function canUseNotes(index) {
 }
 
 function toggleNoteMode() {
-  if (over || paused) return;
+  if (over || paused || isBlockSwapMode()) return;
   noteMode = !noteMode;
   render();
 }
@@ -5678,7 +5761,7 @@ function toggleNote(number) {
 }
 
 function eraseSelected() {
-  if ((!notes.has(selected) && !mineNotes.has(selected) && !isWrongEntry(selected)) || over || paused || blindIntroActive) return;
+  if (isBlockSwapMode() || (!notes.has(selected) && !mineNotes.has(selected) && !isWrongEntry(selected)) || over || paused || blindIntroActive) return;
   pushUndo();
   const erasedWrongEntry = isWrongEntry(selected);
   if (erasedWrongEntry) entries[selected] = EMPTY;
@@ -5712,7 +5795,7 @@ function toggleMineNote() {
 }
 
 function enterNumber(number) {
-  if (blindIntroActive) return;
+  if (blindIntroActive || isBlockSwapMode()) return;
   activeNumber = number;
   if (noteMode) {
     toggleNote(number);
@@ -5932,7 +6015,7 @@ function triggerItem(index) {
     const targets = rogueHintTargetCells(index);
     const noisyHintSource = hintNoiseTurns.has(index);
     targets.forEach((cell) => {
-      hinted.set(cell, hintChoicesForCell(cell, noisyHintSource));
+      updateHintChoices(cell, hintChoicesForCell(cell, noisyHintSource));
       notes.delete(cell);
       mineNotes.delete(cell);
       flashEffect(cell, "effect-hint-target", 700);
@@ -6657,6 +6740,9 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     strikerStunRemainingMs = 0;
     lightningCells = [];
     lightningPhase = "idle";
+    blockSwapAnchor = null;
+    blockSwapMoves = 0;
+    blockSwapPointer = null;
     currentDailyKey = currentAdventureStage ? null : nextDailyKey;
     if (seed !== null) randomSource = seededRandom(seed);
     if (adventureStage?.itemMode === "growingMines") {
@@ -6668,6 +6754,7 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     }
     const introStartCell = options.intro ? prepareIntroStartCell() : null;
     entries = [...puzzle];
+    if (isBlockSwapMode()) entries = blockSwapInitialEntries();
     buildCageLookups();
     items = adventureStage
       ? placeAdventureItems(adventureStage)
@@ -6781,7 +6868,62 @@ boardEl.addEventListener("pointerdown", (event) => {
   event.preventDefault();
   const index = Number(cell.dataset.index);
   if (isCenterBoxCell(index)) softenComboToast();
+  if (isBlockSwapMode()) {
+    blockSwapPointer = {
+      id: event.pointerId,
+      index,
+      x: event.clientX,
+      y: event.clientY,
+      dragging: false,
+      target: null,
+    };
+    boardEl.setPointerCapture?.(event.pointerId);
+    return;
+  }
   selectBoardCell(index);
+});
+boardEl.addEventListener("pointermove", (event) => {
+  if (!isBlockSwapMode() || blockSwapPointer?.id !== event.pointerId) return;
+  event.preventDefault();
+  const distance = Math.hypot(event.clientX - blockSwapPointer.x, event.clientY - blockSwapPointer.y);
+  if (!blockSwapPointer.dragging && distance < 10) return;
+  const targetCell = document.elementFromPoint(event.clientX, event.clientY)?.closest(".cell");
+  const candidate = targetCell && boardEl.contains(targetCell) ? Number(targetCell.dataset.index) : null;
+  const target = candidate !== null && candidate !== blockSwapPointer.index && isSameBlock(candidate, blockSwapPointer.index)
+    ? candidate
+    : null;
+  if (blockSwapPointer.dragging && target === blockSwapPointer.target) return;
+  blockSwapPointer.dragging = true;
+  blockSwapPointer.target = target;
+  selected = blockSwapPointer.index;
+  blockSwapAnchor = blockSwapPointer.index;
+  render();
+});
+boardEl.addEventListener("pointerup", (event) => {
+  if (!isBlockSwapMode() || blockSwapPointer?.id !== event.pointerId) return;
+  event.preventDefault();
+  const gesture = blockSwapPointer;
+  blockSwapPointer = null;
+  const distance = Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y);
+  const targetCell = document.elementFromPoint(event.clientX, event.clientY)?.closest(".cell");
+  const target = targetCell && boardEl.contains(targetCell) ? Number(targetCell.dataset.index) : gesture.index;
+  if ((gesture.dragging || distance >= 10) && target !== gesture.index && isSameBlock(target, gesture.index)) {
+    selected = gesture.index;
+    blockSwapAnchor = gesture.index;
+    if (isCenterBoxCell(target)) softenComboToast();
+    selectBlockSwapCell(target);
+    return;
+  }
+  selectBlockSwapCell(gesture.index);
+});
+boardEl.addEventListener("pointercancel", (event) => {
+  if (blockSwapPointer?.id !== event.pointerId) return;
+  const wasDragging = blockSwapPointer.dragging;
+  blockSwapPointer = null;
+  if (wasDragging) {
+    blockSwapAnchor = null;
+    render();
+  }
 });
 boardEl.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" && event.key !== " ") return;

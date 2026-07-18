@@ -40,6 +40,7 @@ button {
   border: 0;
   color: inherit;
   font: inherit;
+  touch-action: none;
 }
 
 .app-shell {
@@ -652,6 +653,17 @@ h1.title-ja {
   overflow: hidden;
 }
 
+.cell.block-swap-anchor {
+  z-index: 7;
+  background: #ffd76b;
+  box-shadow: inset 0 0 0 4px rgba(32, 37, 43, .78);
+}
+
+.cell.block-swap-option {
+  background: #e3f3ef;
+  box-shadow: inset 0 0 0 2px rgba(42, 132, 119, .3);
+}
+
 .cell.given {
   background: var(--cell);
 }
@@ -662,6 +674,34 @@ h1.title-ja {
 
 .cell.selected {
   background: var(--selected);
+}
+
+.cell.block-swap-drag-source {
+  z-index: 9;
+  background: #ffd76b;
+  box-shadow: 0 8px 18px rgba(32, 37, 43, .28), inset 0 0 0 3px rgba(32, 37, 43, .72);
+  animation: block-swap-lift 650ms ease-in-out infinite alternate;
+}
+
+.cell.block-swap-drag-source .digit {
+  transform: scale(1.12);
+}
+
+.cell.block-swap-drag-target {
+  z-index: 8;
+  background: #bde9df;
+  box-shadow: inset 0 0 0 4px #178c78, 0 0 0 3px rgba(23, 140, 120, .2);
+  animation: block-swap-target 420ms ease-in-out infinite alternate;
+}
+
+@keyframes block-swap-lift {
+  from { transform: scale(1.03); }
+  to { transform: scale(1.08); }
+}
+
+@keyframes block-swap-target {
+  from { transform: scale(.97); }
+  to { transform: scale(1.02); }
 }
 
 .cell.player-low-life {
@@ -1676,7 +1716,7 @@ h1.title-ja {
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   margin-bottom: 7px;
-  touch-action: manipulation;
+  touch-action: none;
 }
 
 .tool-button {
@@ -1687,7 +1727,7 @@ h1.title-ja {
   color: var(--ink);
   font-size: 14px;
   font-weight: 900;
-  touch-action: manipulation;
+  touch-action: none;
 }
 
 .tool-button.is-active {
@@ -1703,7 +1743,7 @@ h1.title-ja {
   grid-template-columns: repeat(9, 1fr);
   gap: 5px;
   min-width: 0;
-  touch-action: manipulation;
+  touch-action: none;
 }
 
 .number-button,
@@ -1713,7 +1753,7 @@ h1.title-ja {
   background: #fffdfa;
   border: 2px solid var(--heavy);
   font-weight: 900;
-  touch-action: manipulation;
+  touch-action: none;
 }
 
 .number-button {
@@ -1725,6 +1765,21 @@ h1.title-ja {
 .number-button-complete {
   visibility: hidden;
   pointer-events: none;
+}
+
+.app-shell.block-swap-mode .pad,
+.app-shell.block-swap-mode .item-legend {
+  display: none;
+}
+
+.app-shell.block-swap-mode .tool-row {
+  grid-template-columns: 1fr;
+  margin-bottom: 0;
+}
+
+.app-shell.block-swap-mode #noteButton,
+.app-shell.block-swap-mode #eraseButton {
+  display: none;
 }
 
 .number-button-climb-locked {
@@ -2459,6 +2514,7 @@ h1.title-ja {
   cursor: pointer;
   border-color: rgba(34, 37, 41, .35);
   background: #fff7df;
+  touch-action: none;
 }
 
 .legend-entry-action:active {
