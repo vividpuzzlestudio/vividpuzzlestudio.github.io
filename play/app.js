@@ -152,7 +152,7 @@ const TEXT = {
       adventureLightning: "雷雨",
       adventureLightningHelp: "落雷範囲から逃げろ / 5分制限",
       adventureHintNoise: "ノイズゾーン",
-      adventureHintNoiseHelp: "ヒント使用後に候補が乱れる / 5分制限",
+      adventureHintNoiseHelp: "ケージ合計を隠しヒント候補を乱す / 5分制限",
       adventureShiftingCages: "カオスケージ",
       adventureShiftingCagesHelp: "5手毎にシャッフル / 4分制限",
       adventureRogueRun: "ローグラン",
@@ -223,7 +223,7 @@ const TEXT = {
       roguePreviewJammer: "ケージ情報を隠す",
       roguePreviewSleeper: "起床で周囲封鎖",
       roguePreviewLightning: "落雷エリアが発生",
-      roguePreviewHintNoise: "ノイズが発生しヒント候補が乱れる",
+      roguePreviewHintNoise: "ノイズがケージ合計を隠しヒント候補を乱す",
       roguePreviewChaser: "リアルタイム追跡",
       roguePreviewStriker: "一直線に突進",
       rogueHeartBoost: "ハート ライフ {n}回復！",
@@ -412,7 +412,7 @@ const TEXT = {
       adventureLightning: "Thunderstorm",
       adventureLightningHelp: "Dodge lightning zones / 5-minute limit",
       adventureHintNoise: "Noise Zone",
-      adventureHintNoiseHelp: "Hints leave noisy candidates / 5-minute limit",
+      adventureHintNoiseHelp: "Hides cage sums and distorts hints / 5-minute limit",
       adventureShiftingCages: "Chaos Cages",
       adventureShiftingCagesHelp: "Shuffle every 5 moves / 4-minute limit",
       adventureRogueRun: "Rogue Run",
@@ -483,7 +483,7 @@ const TEXT = {
       roguePreviewJammer: "Hides cage info",
       roguePreviewSleeper: "Blocks nearby cells",
       roguePreviewLightning: "Lightning zones appear",
-      roguePreviewHintNoise: "Noise appears and distorts hints",
+      roguePreviewHintNoise: "Noise hides cage sums and distorts hints",
       roguePreviewChaser: "Real-time pursuit",
       roguePreviewStriker: "Straight-line rush",
       rogueHeartBoost: "Heart restored {n} lives!",
@@ -1476,18 +1476,61 @@ function jammerMarkerCellFor(cageId) {
 
 function normalizeJammersAfterCageChange() {
   if (!isJammerMode() || !jammerCageIds.size) return;
+  const targetCount = jammerCageIds.size;
   const markerCells = [...jammerCellsByCage.values()].filter((cell) => (
     cell !== undefined && puzzle[cell] === EMPTY && entries[cell] === EMPTY
   ));
   jammerCageIds = new Set();
   jammerCellsByCage = new Map();
+
+  const addJammer = (cage, preferredCell = null) => {
+    if (!cage || jammerCageIds.has(cage.id)) return false;
+    const emptyCellsInCage = cage.cells.filter((cell) => puzzle[cell] === EMPTY && entries[cell] === EMPTY);
+    if (emptyCellsInCage.length < 2) return false;
+    const markerCell = preferredCell !== null && emptyCellsInCage.includes(preferredCell)
+      ? preferredCell
+      : cageStartCell({ cells: emptyCellsInCage });
+    jammerCageIds.add(cage.id);
+    jammerCellsByCage.set(cage.id, markerCell);
+    return true;
+  };
+
   markerCells.forEach((cell) => {
+    if (jammerCageIds.size >= targetCount) return;
     const cageId = cellToCage.get(cell);
-    if (cageId === undefined || jammerCageIds.has(cageId)) return;
-    jammerCageIds.add(cageId);
-    jammerCellsByCage.set(cageId, cell);
+    const cage = cages.find((entry) => entry.id === cageId);
+    addJammer(cage, cell);
   });
-  clearSolvedJammerCages(false);
+
+  if (jammerCageIds.size < targetCount) {
+    shuffle(cages).some((cage) => {
+      addJammer(cage);
+      return jammerCageIds.size >= targetCount;
+    });
+  }
+
+  if (jammerCageIds.size < targetCount) {
+    markerCells.forEach((cell) => {
+      if (jammerCageIds.size >= targetCount) return;
+      const cageId = cellToCage.get(cell);
+      if (cageId === undefined || jammerCageIds.has(cageId)) return;
+      const cage = cages.find((entry) => entry.id === cageId);
+      if (!cage) return;
+      jammerCageIds.add(cageId);
+      jammerCellsByCage.set(cageId, cell);
+    });
+  }
+
+  if (jammerCageIds.size < targetCount) {
+    shuffle(cages).some((cage) => {
+      if (jammerCageIds.has(cage.id)) return false;
+      const markerCell = cageStartCell(cage);
+      if (puzzle[markerCell] !== EMPTY || entries[markerCell] !== EMPTY) return false;
+      jammerCageIds.add(cage.id);
+      jammerCellsByCage.set(cage.id, markerCell);
+      return jammerCageIds.size >= targetCount;
+    });
+  }
   releaseJammersIfBlockingAll(false);
 }
 
@@ -2048,6 +2091,128 @@ function countSolutionsFor(puzzleValues, cageValues, limit = 2, deadline = Infin
   };
 
   solve();
+  return timedOut ? limit : count;
+}
+
+function countCageOnlySolutionsFor(cageValues, limit = 2, deadline = Infinity) {
+  const rowMasks = Array(SIZE).fill(0);
+  const colMasks = Array(SIZE).fill(0);
+  const boxMasks = Array(SIZE).fill(0);
+  let timedOut = false;
+  let nodes = 0;
+  let count = 0;
+
+  const cageOptions = cageValues.map((cage) => {
+    const options = [];
+    const values = Array(cage.cells.length).fill(EMPTY);
+    const localRows = Array(SIZE).fill(0);
+    const localCols = Array(SIZE).fill(0);
+    const localBoxes = Array(SIZE).fill(0);
+
+    const collect = (position, used, total) => {
+      if (position === cage.cells.length) {
+        if (total === cage.sum) options.push([...values]);
+        return;
+      }
+
+      const remainingCells = cage.cells.length - position - 1;
+      const cell = cage.cells[position];
+      const row = rowOf(cell);
+      const col = colOf(cell);
+      const box = Math.floor(row / BOX) * BOX + Math.floor(col / BOX);
+
+      for (let value = 1; value <= SIZE; value += 1) {
+        const bit = 1 << value;
+        if ((used & bit) || (localRows[row] & bit) || (localCols[col] & bit) || (localBoxes[box] & bit)) continue;
+        const nextTotal = total + value;
+        if (nextTotal > cage.sum) continue;
+
+        const range = minMaxRemainingSum(used | bit, remainingCells);
+        if (range === null || nextTotal + range.min > cage.sum || nextTotal + range.max < cage.sum) continue;
+
+        values[position] = value;
+        localRows[row] |= bit;
+        localCols[col] |= bit;
+        localBoxes[box] |= bit;
+        collect(position + 1, used | bit, nextTotal);
+        localBoxes[box] &= ~bit;
+        localCols[col] &= ~bit;
+        localRows[row] &= ~bit;
+      }
+    };
+
+    collect(0, 0, 0);
+    return { cage, options };
+  });
+
+  if (cageOptions.some(({ options }) => !options.length)) return 0;
+  const assigned = Array(cageOptions.length).fill(false);
+
+  const optionFits = (cage, values) => cage.cells.every((cell, index) => {
+    const value = values[index];
+    const bit = 1 << value;
+    const row = rowOf(cell);
+    const col = colOf(cell);
+    const box = Math.floor(row / BOX) * BOX + Math.floor(col / BOX);
+    return !(rowMasks[row] & bit) && !(colMasks[col] & bit) && !(boxMasks[box] & bit);
+  });
+
+  const setOption = (cage, values, enabled) => {
+    cage.cells.forEach((cell, index) => {
+      const bit = 1 << values[index];
+      const row = rowOf(cell);
+      const col = colOf(cell);
+      const box = Math.floor(row / BOX) * BOX + Math.floor(col / BOX);
+      if (enabled) {
+        rowMasks[row] |= bit;
+        colMasks[col] |= bit;
+        boxMasks[box] |= bit;
+      } else {
+        rowMasks[row] &= ~bit;
+        colMasks[col] &= ~bit;
+        boxMasks[box] &= ~bit;
+      }
+    });
+  };
+
+  const solve = (assignedCount) => {
+    nodes += 1;
+    if (count >= limit || timedOut) return;
+    if (nodes % 64 === 0 && Date.now() > deadline) {
+      timedOut = true;
+      return;
+    }
+    if (assignedCount === cageOptions.length) {
+      count += 1;
+      return;
+    }
+
+    let bestIndex = -1;
+    let bestOptions = null;
+    for (let index = 0; index < cageOptions.length; index += 1) {
+      if (assigned[index]) continue;
+      const { cage, options } = cageOptions[index];
+      const fitting = options.filter((values) => optionFits(cage, values));
+      if (!fitting.length) return;
+      if (bestOptions === null || fitting.length < bestOptions.length) {
+        bestIndex = index;
+        bestOptions = fitting;
+        if (fitting.length === 1) break;
+      }
+    }
+
+    const { cage } = cageOptions[bestIndex];
+    assigned[bestIndex] = true;
+    bestOptions.forEach((values) => {
+      if (count >= limit || timedOut) return;
+      setOption(cage, values, true);
+      solve(assignedCount + 1);
+      setOption(cage, values, false);
+    });
+    assigned[bestIndex] = false;
+  };
+
+  solve(0);
   return timedOut ? limit : count;
 }
 
@@ -2686,7 +2851,7 @@ function generateUncheckedCageOnlyPuzzle(config) {
 function generateUniquePuzzle(config) {
   const isCageOnly = config.blanks >= 81;
   if (isCageOnly) {
-    generateUncheckedCageOnlyPuzzle(config);
+    generateCageOnlyUniquePuzzle(config);
     return;
   }
   const totalDeadline = Date.now() + 3600;
@@ -2742,15 +2907,13 @@ function generateUniquePuzzle(config) {
 }
 
 function generateCageOnlyUniquePuzzle(config) {
-  const totalDeadline = Date.now() + 4600;
-  const maxAttempts = 140;
+  const totalDeadline = Date.now() + 3200;
+  const maxAttempts = 160;
   const emptyPuzzle = Array(SIZE * SIZE).fill(EMPTY);
   let best = null;
-  let uniqueCount = 0;
 
   const rememberCandidate = (candidatePuzzle, candidateCages) => {
     const scoreValue = puzzleDifficultyScore(candidatePuzzle, candidateCages, true);
-    uniqueCount += 1;
     if (!best || scoreValue > best.score) {
       best = {
         score: scoreValue,
@@ -2764,18 +2927,18 @@ function generateCageOnlyUniquePuzzle(config) {
   for (let attempt = 0; attempt < maxAttempts && Date.now() < totalDeadline; attempt += 1) {
     solution = generateSolution();
     const candidateCages = makeCages("extreme");
+    if (candidateCages.some((cage) => cage.cells.length === 1)) continue;
     if (puzzlePatternRisk(emptyPuzzle, candidateCages)) continue;
-    const deadline = Math.min(totalDeadline, Date.now() + 190);
-    if (countSolutionsFor(emptyPuzzle, candidateCages, 2, deadline) !== 1) continue;
+    const deadline = Math.min(totalDeadline, Date.now() + 420);
+    if (countCageOnlySolutionsFor(candidateCages, 2, deadline) !== 1) continue;
 
     const candidatePuzzle = makePuzzle(config.blanks);
     rememberCandidate(candidatePuzzle, candidateCages);
-    if (uniqueCount >= 2 || Date.now() > totalDeadline - 1100) break;
+    break;
   }
 
   if (!best) {
-    generateUniquePuzzle({ ...config, blanks: 81 });
-    puzzle = makePuzzle(config.blanks);
+    generateVeryHardTemplatePuzzle();
     return;
   }
 
@@ -3088,6 +3251,16 @@ function renderBoard() {
   const strikerNext = nextStrikerCell();
   const strikerStunned = isStrikerStunned();
   const lightningSet = new Set(isLightningMode() ? lightningCells : []);
+  const noisyCageCounts = new Map();
+  if (isHintNoiseMode()) {
+    hintNoiseTurns.forEach((turns, cell) => {
+      const cageId = cellToCage.get(cell);
+      if (cageId !== undefined) noisyCageCounts.set(cageId, (noisyCageCounts.get(cageId) || 0) + 1);
+    });
+  }
+  const hiddenNoiseCages = new Set([...noisyCageCounts]
+    .filter(([, count]) => count >= 2)
+    .map(([cageId]) => cageId));
   const bomberLimit = cageEaterActive
     ? adventureRuleConfig("cageEater").eaterLimit || 4
     : adventureRuleConfig("bomber").bomberLimit || 4;
@@ -3164,7 +3337,8 @@ function renderBoard() {
     if (sum && !isJammedCage(cageId)) {
       const label = document.createElement("span");
       label.className = "cage-sum";
-      label.textContent = sum;
+      if (hiddenNoiseCages.has(cageId)) label.classList.add("cage-sum-noisy");
+      label.textContent = hiddenNoiseCages.has(cageId) ? "?" : sum;
       cell.append(label);
     }
 

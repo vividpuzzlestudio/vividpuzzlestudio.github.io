@@ -1348,6 +1348,22 @@ h1.title-ja {
   line-height: 1;
 }
 
+.cage-sum.cage-sum-noisy {
+  min-width: 1em;
+  color: #7048a8;
+  text-align: center;
+  text-shadow:
+    1px 0 rgba(35, 143, 160, .42),
+    -1px 0 rgba(143, 75, 170, .34);
+  animation: cage-sum-noise-flicker .8s steps(2, end) infinite;
+}
+
+@keyframes cage-sum-noise-flicker {
+  0%, 100% { opacity: 1; transform: translate(0, 0); }
+  40% { opacity: .72; transform: translate(.5px, 0); }
+  70% { opacity: .9; transform: translate(-.5px, .25px); }
+}
+
 .cage-overlay {
   position: absolute;
   inset: 0;
