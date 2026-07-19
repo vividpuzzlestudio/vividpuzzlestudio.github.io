@@ -157,7 +157,7 @@ const TEXT = {
       adventureHintNoise: "ノイズゾーン",
       adventureHintNoiseHelp: "ケージ合計を隠しヒント候補を乱す / 5分制限",
       adventureBlockSwap: "ブロックスワップ",
-      adventureBlockSwapHelp: "数字を入れ替えて盤面を完成させろ / 5分制限",
+      adventureBlockSwapHelp: "数字を入れ替えて完成させろ / 5分制限",
       adventureShiftingCages: "カオスケージ",
       adventureShiftingCagesHelp: "5手毎にシャッフル / 4分制限",
       adventureRogueRun: "ローグラン",
