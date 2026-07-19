@@ -66,6 +66,8 @@ const TEXT = {
       undo: "元に戻す",
       note: "メモ",
       erase: "消す",
+      lock: "ロック",
+      unlock: "解除",
       itemLegend: "アイテム凡例",
       generating: "生成中...",
       selectDifficulty: "遊び方を選ぶ",
@@ -328,6 +330,8 @@ const TEXT = {
       undo: "Undo",
       note: "Notes",
       erase: "Erase",
+      lock: "Lock",
+      unlock: "Unlock",
       itemLegend: "Item guide",
       generating: "Generating...",
       selectDifficulty: "Choose How to Play",
@@ -857,6 +861,9 @@ let lightningTimerId = null;
 let blockSwapAnchor = null;
 let blockSwapMoves = 0;
 let blockSwapPointer = null;
+let blockSwapLockedBlocks = new Set();
+let blockSwapCelebratingBlocks = new Set();
+let blockSwapManualLocks = new Set();
 let noteMode = false;
 let undoStack = [];
 let undoUsed = false;
@@ -3317,6 +3324,24 @@ function renderBoard() {
     if (blockSwapMode && blockSwapPointer?.dragging && index === blockSwapPointer.target) {
       cell.classList.add("block-swap-drag-target");
     }
+    if (blockSwapMode) {
+      const block = blockSwapBlockIndex(index);
+      if (blockSwapLockedBlocks.has(block)) {
+        const localRow = rowOf(index) % BOX;
+        const localCol = colOf(index) % BOX;
+        cell.classList.add("block-swap-complete");
+        if (localRow === 0) cell.classList.add("block-swap-complete-top");
+        if (localRow === BOX - 1) cell.classList.add("block-swap-complete-bottom");
+        if (localCol === 0) cell.classList.add("block-swap-complete-left");
+        if (localCol === BOX - 1) cell.classList.add("block-swap-complete-right");
+        if (blockSwapCelebratingBlocks.has(block)) {
+          cell.classList.add("block-swap-just-completed");
+          cell.style.setProperty("--block-swap-delay", `${(localRow * BOX + localCol) * 35}ms`);
+        }
+        cell.disabled = true;
+      }
+      if (blockSwapManualLocks.has(index)) cell.classList.add("block-swap-manual-lock");
+    }
     if (!blindMode && isRelated(index, selected) && index !== selected) cell.classList.add("related");
     if (!blindMode && cellToCage.get(index) === selectedCageId && index !== selected) cell.classList.add("selected-cage");
     if (!jammed && matchingNumber && value === matchingNumber && index !== selected) cell.classList.add("same-number");
@@ -4111,8 +4136,44 @@ function blockSwapInitialEntries() {
   return Array.from({ length: CELL_COUNT }, (_, cell) => (rowOf(cell) % BOX) * BOX + (colOf(cell) % BOX) + 1);
 }
 
+function blockSwapBlockIndex(index) {
+  return Math.floor(rowOf(index) / BOX) * BOX + Math.floor(colOf(index) / BOX);
+}
+
+function blockSwapBlockCells(block) {
+  const blockRow = Math.floor(block / BOX) * BOX;
+  const blockCol = (block % BOX) * BOX;
+  return Array.from({ length: BOX * BOX }, (_, offset) => (
+    (blockRow + Math.floor(offset / BOX)) * SIZE + blockCol + (offset % BOX)
+  ));
+}
+
+function isBlockSwapBlockComplete(block) {
+  return blockSwapBlockCells(block).every((cell) => entries[cell] === solution[cell]);
+}
+
+function lockCompletedBlockSwapBlock(block) {
+  if (blockSwapLockedBlocks.has(block) || !isBlockSwapBlockComplete(block)) return false;
+  blockSwapBlockCells(block).forEach((cell) => blockSwapManualLocks.delete(cell));
+  blockSwapLockedBlocks.add(block);
+  blockSwapCelebratingBlocks.add(block);
+  undoStack = [];
+  setTimeout(() => {
+    blockSwapCelebratingBlocks.delete(block);
+    if (isBlockSwapMode()) render();
+  }, 1100);
+  return true;
+}
+
 function selectBlockSwapCell(index) {
   if (over || paused) return;
+  if (blockSwapLockedBlocks.has(blockSwapBlockIndex(index))) return;
+  if (blockSwapManualLocks.has(index)) {
+    selected = index;
+    blockSwapAnchor = null;
+    render();
+    return;
+  }
   selected = index;
   if (blockSwapAnchor === null) {
     blockSwapAnchor = index;
@@ -4136,6 +4197,7 @@ function selectBlockSwapCell(index) {
   [entries[source], entries[index]] = [entries[index], entries[source]];
   blockSwapAnchor = null;
   blockSwapMoves += 1;
+  lockCompletedBlockSwapBlock(blockSwapBlockIndex(index));
   flashEffect(source, "effect-cage-shift", 420);
   flashEffect(index, "effect-cage-shift", 420);
   if (entries.every((value, cell) => value === solution[cell])) {
@@ -4143,6 +4205,19 @@ function selectBlockSwapCell(index) {
   } else {
     render();
   }
+}
+
+function lockSelectedBlockSwapCell() {
+  if (!isBlockSwapMode() || over || paused || blockSwapLockedBlocks.has(blockSwapBlockIndex(selected))) return;
+  blockSwapManualLocks.add(selected);
+  blockSwapAnchor = null;
+  render();
+}
+
+function unlockSelectedBlockSwapCell() {
+  if (!isBlockSwapMode() || over || paused || !blockSwapManualLocks.has(selected)) return;
+  blockSwapManualLocks.delete(selected);
+  render();
 }
 
 function isRogueRunMode() {
@@ -5569,6 +5644,7 @@ function snapshotState() {
     strikerStunRemainingMs: currentStrikerStunRemaining(),
     blockSwapAnchor,
     blockSwapMoves,
+    blockSwapManualLocks: new Set(blockSwapManualLocks),
   };
 }
 
@@ -5612,6 +5688,7 @@ function restoreSnapshot(snapshot) {
   strikerStunnedUntil = strikerStunRemainingMs > 0 ? Date.now() + strikerStunRemainingMs : 0;
   blockSwapAnchor = snapshot.blockSwapAnchor ?? null;
   blockSwapMoves = snapshot.blockSwapMoves || 0;
+  blockSwapManualLocks = new Set(snapshot.blockSwapManualLocks || []);
   normalizeSleeperBlocks();
   buildCageLookups();
 }
@@ -5720,8 +5797,20 @@ function undoMove() {
 
 function renderToolRow() {
   undoButton.disabled = over || paused || blindIntroActive || undoStack.length === 0;
-  eraseButton.disabled = isBlockSwapMode() || over || paused || blindIntroActive || (!notes.has(selected) && !mineNotes.has(selected) && !isWrongEntry(selected));
-  noteButton.disabled = isBlockSwapMode() || over || paused || blindIntroActive;
+  if (isBlockSwapMode()) {
+    const completed = blockSwapLockedBlocks.has(blockSwapBlockIndex(selected));
+    noteButton.textContent = t("lock");
+    eraseButton.textContent = t("unlock");
+    noteButton.disabled = over || paused || blindIntroActive || completed || blockSwapManualLocks.has(selected);
+    eraseButton.disabled = over || paused || blindIntroActive || !blockSwapManualLocks.has(selected);
+    noteButton.classList.remove("is-active");
+    noteButton.setAttribute("aria-pressed", "false");
+    return;
+  }
+  noteButton.textContent = t("note");
+  eraseButton.textContent = t("erase");
+  eraseButton.disabled = over || paused || blindIntroActive || (!notes.has(selected) && !mineNotes.has(selected) && !isWrongEntry(selected));
+  noteButton.disabled = over || paused || blindIntroActive;
   noteButton.classList.toggle("is-active", noteMode);
   noteButton.setAttribute("aria-pressed", noteMode ? "true" : "false");
 }
@@ -6743,6 +6832,9 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     blockSwapAnchor = null;
     blockSwapMoves = 0;
     blockSwapPointer = null;
+    blockSwapLockedBlocks = new Set();
+    blockSwapCelebratingBlocks = new Set();
+    blockSwapManualLocks = new Set();
     currentDailyKey = currentAdventureStage ? null : nextDailyKey;
     if (seed !== null) randomSource = seededRandom(seed);
     if (adventureStage?.itemMode === "growingMines") {
@@ -6754,7 +6846,12 @@ async function newGame(difficultyKey = currentDifficulty, options = {}) {
     }
     const introStartCell = options.intro ? prepareIntroStartCell() : null;
     entries = [...puzzle];
-    if (isBlockSwapMode()) entries = blockSwapInitialEntries();
+    if (isBlockSwapMode()) {
+      entries = blockSwapInitialEntries();
+      for (let block = 0; block < SIZE; block += 1) {
+        if (isBlockSwapBlockComplete(block)) blockSwapLockedBlocks.add(block);
+      }
+    }
     buildCageLookups();
     items = adventureStage
       ? placeAdventureItems(adventureStage)
@@ -6869,6 +6966,13 @@ boardEl.addEventListener("pointerdown", (event) => {
   const index = Number(cell.dataset.index);
   if (isCenterBoxCell(index)) softenComboToast();
   if (isBlockSwapMode()) {
+    if (blockSwapLockedBlocks.has(blockSwapBlockIndex(index))) return;
+    if (blockSwapManualLocks.has(index)) {
+      selected = index;
+      blockSwapAnchor = null;
+      render();
+      return;
+    }
     blockSwapPointer = {
       id: event.pointerId,
       index,
@@ -6889,7 +6993,7 @@ boardEl.addEventListener("pointermove", (event) => {
   if (!blockSwapPointer.dragging && distance < 10) return;
   const targetCell = document.elementFromPoint(event.clientX, event.clientY)?.closest(".cell");
   const candidate = targetCell && boardEl.contains(targetCell) ? Number(targetCell.dataset.index) : null;
-  const target = candidate !== null && candidate !== blockSwapPointer.index && isSameBlock(candidate, blockSwapPointer.index)
+  const target = candidate !== null && candidate !== blockSwapPointer.index && !blockSwapManualLocks.has(candidate) && isSameBlock(candidate, blockSwapPointer.index)
     ? candidate
     : null;
   if (blockSwapPointer.dragging && target === blockSwapPointer.target) return;
@@ -6933,8 +7037,14 @@ boardEl.addEventListener("keydown", (event) => {
   selectBoardCell(Number(cell.dataset.index));
 });
 undoButton.addEventListener("click", undoMove);
-noteButton.addEventListener("click", toggleNoteMode);
-eraseButton.addEventListener("click", eraseSelected);
+noteButton.addEventListener("click", () => {
+  if (isBlockSwapMode()) lockSelectedBlockSwapCell();
+  else toggleNoteMode();
+});
+eraseButton.addEventListener("click", () => {
+  if (isBlockSwapMode()) unlockSelectedBlockSwapCell();
+  else eraseSelected();
+});
 reviveButton.addEventListener("click", requestRewardedRevive);
 retryButton.addEventListener("click", retryGame);
 dialogButton.addEventListener("click", () => {
